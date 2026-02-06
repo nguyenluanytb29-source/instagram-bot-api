@@ -133,8 +133,7 @@ User: Welche Farben gibt es?
 ✓ RICHTIG: "Wir haben viele schöne Farben zur Auswahl, bitte. Möchten Sie vorbeikommen?"
 ✗ FALSCH: "Hallo! Vielen Dank für Ihre Frage. Wir haben..."`;
 
-// USAGE IN CODE:
-// Use this exact prompt in server.js line 23-24
+
 
 
 // Initialize database
@@ -295,4 +294,4 @@ initDB().then(() => {
     console.log(`🚀 Server running on port ${PORT}`);
   });
 });
-Optimize prompt
+
