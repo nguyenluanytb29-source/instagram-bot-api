@@ -1,0 +1,25 @@
+{
+  "name": "instagram-ai-bot-api",
+  "version": "1.0.0",
+  "description": "Instagram AI Bot API with Memory for Nailounge101 Berlin",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": ["instagram", "ai", "chatbot", "openai", "manychat"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "pg": "^8.11.3",
+    "openai": "^4.28.0",
+    "dotenv": "^16.4.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
