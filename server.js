@@ -97,10 +97,8 @@ async function initDB() {
       user_name VARCHAR(255),
       role VARCHAR(50) NOT NULL,
       message TEXT NOT NULL,
-      timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      INDEX idx_contact_id (contact_id),
-      INDEX idx_timestamp (timestamp)
-    );
+      timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
   `;
   
   try {
