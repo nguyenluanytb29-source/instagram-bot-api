@@ -182,6 +182,50 @@ function formatModellText(text) {
   
   return lines.join('\n');
 }
+
+// Full Modellkunde text - used when AI gives short response
+const FULL_MODELL_TEXT = `Guten Tag
+
+Wir freuen uns sehr, dass Sie sich für unsere Dienstleistungen interessieren.
+
+Momentan nehmen wir noch Kunden für unsere Schüler an.
+
+Der Preis für die Nägel hängt vom Design ab:
+Wenn Sie Natur klar wünschen, beträgt der Preis 15 €.
+Wenn Sie Natur Make-up, French, Farbe, Glitzer, Ombre oder Katzenaugen möchten, kostet es 20 €.
+Für aufwendigere Designs berechnen wir zusätzlich 1 € pro Design-Nagel, und jede Steinchen kostet 0,50 €.
+
+Unsere Schüler können jedoch möglicherweise sehr komplizierte Muster nicht umsetzen.
+
+Die Behandlungszeit beträgt in der Regel etwa 2 bis 3 Stunden, und das Ergebnis kann möglicherweise nicht perfekt sein — wir möchten Sie im Voraus darüber informieren, damit Sie Bescheid wissen.
+
+Außerdem bieten wir eine Nachbesserung innerhalb von 3 Tagen an.
+
+Ist das für Sie in Ordnung? 💅`;
+
+// Check if message contains Modellkunde keywords
+function hasModellKeyword(text) {
+  const keywords = ['modell', 'model', 'azubi', 'übung', 'training', 'schulung', '15euro', '15 euro', '15 €', '15€'];
+  const lower = text.toLowerCase();
+  return keywords.some(k => lower.includes(k));
+}
+
+// Check if this conversation is about Modellkunde
+function isModellkundeConversation(userMessage, history) {
+  // Check current message
+  if (hasModellKeyword(userMessage)) {
+    return true;
+  }
+  
+  // Check history
+  for (const msg of history) {
+    if (hasModellKeyword(msg.message)) {
+      return true;
+    }
+  }
+  
+  return false;
+}
 // Main chat endpoint
 app.post('/chat', async (req, res) => {
   try {
@@ -219,22 +263,40 @@ app.post('/chat', async (req, res) => {
       temperature: 0.7
     });
     
+    // 3. Get AI response
     let aiResponse = completion.choices[0].message.content;
-console.log(`🤖 AI response: ${aiResponse.substring(0, 100)}...`);
-
-// Format Modell text if present
-aiResponse = formatModellText(aiResponse);
+    console.log(`🤖 AI response (original): ${aiResponse.substring(0, 100)}...`);
     
-    console.log(`🤖 AI response: ${aiResponse}`);
+    // Check if this is Modellkunde conversation
+    const isModellkunde = isModellkundeConversation(user_message, history);
     
-    // 3. Save messages to database
-    await saveMessage(contact_id, user_name, 'user', user_message);
-    await saveMessage(contact_id, user_name, 'assistant', aiResponse);
+    if (isModellkunde) {
+      console.log('🔍 Detected Modellkunde conversation');
+      
+      // Check if AI gave short response (summarized)
+      const isShortResponse = aiResponse.length < 300;
+      const mentionsPrice = aiResponse.includes('15') || aiResponse.includes('Natur klar');
+      
+      if (isShortResponse && mentionsPrice) {
+        console.log('⚠️ AI response too short - using full Modell text');
+        aiResponse = FULL_MODELL_TEXT;
+      } else if (aiResponse.includes('Wir freuen uns sehr')) {
+        // AI sent full text but maybe wrong format - keep it
+        console.log('✅ AI sent full Modell text');
+      } else {
+        console.log('ℹ️ Modellkunde conversation but not asking for info yet');
+      }
+    }
     
-    // 4. Return response to ManyChat
-    return res.json({
-      success: true,
-      ai_message: aiResponse
+    console.log(`🤖 AI response (final): ${aiResponse.substring(0, 100)}... (length: ${aiResponse.length})`);
+    
+    // 4. Save messages to database
+    await saveMessage(contact_id, user_name, 'user', user_message, false);
+    await saveMessage(contact_id, user_name, 'assistant', aiResponse, false);
+    
+    // 5. Send response back to ManyChat
+    res.json({
+      bot_response: aiResponse
     });
     
   } catch (error) {
@@ -243,7 +305,7 @@ aiResponse = formatModellText(aiResponse);
     return res.status(500).json({
       success: false,
       error: 'Internal server error',
-      ai_message: 'Entschuldigung, es gab einen technischen Fehler. Bitte versuchen Sie es erneut.'
+      bot_response: 'Entschuldigung, es gab einen technischen Fehler. Bitte versuchen Sie es erneut.'
     });
   }
 });
