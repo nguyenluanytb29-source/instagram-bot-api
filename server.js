@@ -9,10 +9,18 @@ require('dotenv').config();
 const app = express();
 app.use(express.json());
 
-// Database connection
+// Database connection with better error handling
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
+  ssl: { rejectUnauthorized: false },
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
+});
+
+// Handle pool errors
+pool.on('error', (err) => {
+  console.error('❌ Unexpected database error:', err);
 });
 
 // OpenAI client
@@ -20,11 +28,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-// System prompt (German)
-// OPTIMIZED SYSTEM PROMPT - NO REPETITION
-
-// FINAL SOLUTION - TEMPLATE-BASED MODELLKUNDE TEXT
-
+// System prompt
 const SYSTEM_PROMPT = `Du bist der KI-Assistent von Nailounge101 Berlin (Reichsstraße 101, 14052 Berlin).
 
 ⚠️ WICHTIGSTE REGEL - KEINE WIEDERHOLUNGEN:
@@ -79,6 +83,52 @@ WICHTIG:
 - NIEMALS Setmore-Link an Modellkunden
 - Modell-Text ist lang (10+ Zeilen) - das ist OK!`;
 
+// Full Modellkunde text - used when AI summarizes
+const FULL_MODELL_TEXT = `Guten Tag
+
+Wir freuen uns sehr, dass Sie sich für unsere Dienstleistungen interessieren.
+
+Momentan nehmen wir noch Kunden für unsere Schüler an.
+
+Der Preis für die Nägel hängt vom Design ab:
+Wenn Sie Natur klar wünschen, beträgt der Preis 15 €.
+Wenn Sie Natur Make-up, French, Farbe, Glitzer, Ombre oder Katzenaugen möchten, kostet es 20 €.
+Für aufwendigere Designs berechnen wir zusätzlich 1 € pro Design-Nagel, und jede Steinchen kostet 0,50 €.
+
+Unsere Schüler können jedoch möglicherweise sehr komplizierte Muster nicht umsetzen.
+
+Die Behandlungszeit beträgt in der Regel etwa 2 bis 3 Stunden, und das Ergebnis kann möglicherweise nicht perfekt sein — wir möchten Sie im Voraus darüber informieren, damit Sie Bescheid wissen.
+
+Außerdem bieten wir eine Nachbesserung innerhalb von 3 Tagen an.
+
+Ist das für Sie in Ordnung? 💅`;
+
+// Check if message contains Modellkunde keywords
+function hasModellKeyword(text) {
+  if (!text) return false;
+  const keywords = ['modell', 'model', 'azubi', 'übung', 'training', 'schulung', '15euro', '15 euro', '15 €', '15€'];
+  const lower = text.toLowerCase();
+  return keywords.some(k => lower.includes(k));
+}
+
+// Check if this conversation is about Modellkunde
+function isModellkundeConversation(userMessage, history) {
+  // Check current message
+  if (hasModellKeyword(userMessage)) {
+    return true;
+  }
+  
+  // Check history
+  if (history && history.length > 0) {
+    for (const msg of history) {
+      if (hasModellKeyword(msg.message)) {
+        return true;
+      }
+    }
+  }
+  
+  return false;
+}
 
 // Initialize database
 async function initDB() {
@@ -113,7 +163,6 @@ async function getChatHistory(contactId) {
   
   try {
     const result = await pool.query(query, [contactId]);
-    // Reverse to get chronological order
     return result.rows.reverse();
   } catch (error) {
     console.error('❌ Get history error:', error);
@@ -132,7 +181,8 @@ async function saveMessage(contactId, userName, role, message) {
     await pool.query(query, [contactId, userName, role, message]);
     console.log(`✅ Saved ${role} message`);
   } catch (error) {
-    console.error('❌ Save message error:', error);
+    console.error(`❌ Save ${role} message error:`, error.message);
+    // Don't throw - continue even if save fails
   }
 }
 
@@ -144,88 +194,12 @@ function formatHistory(history) {
   
   return history
     .map(msg => {
-      // Escape quotes to prevent JSON issues
       const cleanMessage = msg.message.replace(/"/g, "'").replace(/\n/g, " ");
       return `[${msg.role}]: ${cleanMessage}`;
     })
     .join('\n');
 }
 
-// Format Modellkunde text with proper line breaks for Instagram
-function formatModellText(text) {
-  // Check if this is Modell text
-  if (!text.includes('Wir freuen uns sehr')) {
-    return text; // Not Modell text, return as is
-  }
-  
-  // Replace single line breaks with double for Instagram
-  const lines = [
-    'Guten Tag',
-    '',
-    'Wir freuen uns sehr, dass Sie sich für unsere Dienstleistungen interessieren.',
-    '',
-    'Momentan nehmen wir noch Kunden für unsere Schüler an.',
-    '',
-    'Der Preis für die Nägel hängt vom Design ab:',
-    'Wenn Sie Natur klar wünschen, beträgt der Preis 15 €.',
-    'Wenn Sie Natur Make-up, French, Farbe, Glitzer, Ombre oder Katzenaugen möchten, kostet es 20 €.',
-    'Für aufwendigere Designs berechnen wir zusätzlich 1 € pro Design-Nagel, und jede Steinchen kostet 0,50 €.',
-    '',
-    'Unsere Schüler können jedoch möglicherweise sehr komplizierte Muster nicht umsetzen.',
-    '',
-    'Die Behandlungszeit beträgt in der Regel etwa 2 bis 3 Stunden, und das Ergebnis kann möglicherweise nicht perfekt sein — wir möchten Sie im Voraus darüber informieren, damit Sie Bescheid wissen.',
-    '',
-    'Außerdem bieten wir eine Nachbesserung innerhalb von 3 Tagen an.',
-    '',
-    'Ist das für Sie in Ordnung? 💅'
-  ];
-  
-  return lines.join('\n');
-}
-
-// Full Modellkunde text - used when AI gives short response
-const FULL_MODELL_TEXT = `Guten Tag
-
-Wir freuen uns sehr, dass Sie sich für unsere Dienstleistungen interessieren.
-
-Momentan nehmen wir noch Kunden für unsere Schüler an.
-
-Der Preis für die Nägel hängt vom Design ab:
-Wenn Sie Natur klar wünschen, beträgt der Preis 15 €.
-Wenn Sie Natur Make-up, French, Farbe, Glitzer, Ombre oder Katzenaugen möchten, kostet es 20 €.
-Für aufwendigere Designs berechnen wir zusätzlich 1 € pro Design-Nagel, und jede Steinchen kostet 0,50 €.
-
-Unsere Schüler können jedoch möglicherweise sehr komplizierte Muster nicht umsetzen.
-
-Die Behandlungszeit beträgt in der Regel etwa 2 bis 3 Stunden, und das Ergebnis kann möglicherweise nicht perfekt sein — wir möchten Sie im Voraus darüber informieren, damit Sie Bescheid wissen.
-
-Außerdem bieten wir eine Nachbesserung innerhalb von 3 Tagen an.
-
-Ist das für Sie in Ordnung? 💅`;
-
-// Check if message contains Modellkunde keywords
-function hasModellKeyword(text) {
-  const keywords = ['modell', 'model', 'azubi', 'übung', 'training', 'schulung', '15euro', '15 euro', '15 €', '15€'];
-  const lower = text.toLowerCase();
-  return keywords.some(k => lower.includes(k));
-}
-
-// Check if this conversation is about Modellkunde
-function isModellkundeConversation(userMessage, history) {
-  // Check current message
-  if (hasModellKeyword(userMessage)) {
-    return true;
-  }
-  
-  // Check history
-  for (const msg of history) {
-    if (hasModellKeyword(msg.message)) {
-      return true;
-    }
-  }
-  
-  return false;
-}
 // Main chat endpoint
 app.post('/chat', async (req, res) => {
   try {
@@ -290,13 +264,18 @@ app.post('/chat', async (req, res) => {
     
     console.log(`🤖 AI response (final): ${aiResponse.substring(0, 100)}... (length: ${aiResponse.length})`);
     
-    // 4. Save messages to database
-    await saveMessage(contact_id, user_name, 'user', user_message);
-    await saveMessage(contact_id, user_name, 'assistant', aiResponse);
-    
-    // 5. Send response back to ManyChat
+    // 4. Send response FIRST (don't wait for save)
     res.json({
       bot_response: aiResponse
+    });
+    
+    // 5. Save messages async (don't block response)
+    saveMessage(contact_id, user_name, 'user', user_message).catch(err => {
+      console.error('Failed to save user message:', err.message);
+    });
+    
+    saveMessage(contact_id, user_name, 'assistant', aiResponse).catch(err => {
+      console.error('Failed to save assistant message:', err.message);
     });
     
   } catch (error) {
@@ -315,7 +294,7 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Test endpoint (optional - for debugging)
+// Test endpoint
 app.get('/history/:contactId', async (req, res) => {
   try {
     const history = await getChatHistory(req.params.contactId);
@@ -333,4 +312,3 @@ initDB().then(() => {
     console.log(`🚀 Server running on port ${PORT}`);
   });
 });
-
