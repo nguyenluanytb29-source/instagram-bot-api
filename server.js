@@ -274,14 +274,14 @@ app.post('/chat', async (req, res) => {
       console.log('🔍 Detected Modellkunde conversation');
       
       // Check if AI gave short response (summarized)
-      const isShortResponse = aiResponse.length < 300;
-      const mentionsPrice = aiResponse.includes('15') || aiResponse.includes('Natur klar');
+      const isShortResponse = aiResponse.length < 400;
+      const mentionsModell = aiResponse.includes('15') || aiResponse.includes('Natur') || aiResponse.includes('Modell');
+      const notFullText = !aiResponse.includes('Wir freuen uns sehr');
       
-      if (isShortResponse && mentionsPrice) {
-        console.log('⚠️ AI response too short - using full Modell text');
+      if (isShortResponse && mentionsModell && notFullText) {
+        console.log(`⚠️ AI response too short (${aiResponse.length} chars) - using full Modell text`);
         aiResponse = FULL_MODELL_TEXT;
       } else if (aiResponse.includes('Wir freuen uns sehr')) {
-        // AI sent full text but maybe wrong format - keep it
         console.log('✅ AI sent full Modell text');
       } else {
         console.log('ℹ️ Modellkunde conversation but not asking for info yet');
@@ -291,8 +291,8 @@ app.post('/chat', async (req, res) => {
     console.log(`🤖 AI response (final): ${aiResponse.substring(0, 100)}... (length: ${aiResponse.length})`);
     
     // 4. Save messages to database
-    await saveMessage(contact_id, user_name, 'user', user_message, false);
-    await saveMessage(contact_id, user_name, 'assistant', aiResponse, false);
+    await saveMessage(contact_id, user_name, 'user', user_message);
+    await saveMessage(contact_id, user_name, 'assistant', aiResponse);
     
     // 5. Send response back to ManyChat
     res.json({
