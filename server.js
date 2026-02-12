@@ -115,13 +115,24 @@ function hasModellKeyword(text) {
 function isModellkundeConversation(userMessage, history) {
   // Check current message
   if (hasModellKeyword(userMessage)) {
+    console.log('✓ Modell keyword in current message');
     return true;
   }
   
-  // Check history
+  // Check if last assistant message was Modell-related
   if (history && history.length > 0) {
-    for (const msg of history) {
+    // Get last 3 messages
+    const recentMessages = history.slice(-3);
+    
+    for (const msg of recentMessages) {
       if (hasModellKeyword(msg.message)) {
+        console.log('✓ Modell keyword in recent history');
+        return true;
+      }
+      
+      // If assistant sent Modell info text
+      if (msg.role === 'assistant' && msg.message.includes('Wir freuen uns sehr')) {
+        console.log('✓ Modell conversation active (assistant sent info)');
         return true;
       }
     }
