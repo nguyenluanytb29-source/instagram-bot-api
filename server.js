@@ -84,25 +84,25 @@ WICHTIG:
 - Modell-Text ist lang (10+ Zeilen) - das ist OK!`;
 
 // Full Modellkunde text - used when AI summarizes
-const FULL_MODELL_TEXT = `Guten Tag
+const FULL_MODELL_TEXT = `Guten Tag 👋
 
 Wir freuen uns sehr, dass Sie sich für unsere Dienstleistungen interessieren.
 
-Momentan nehmen wir noch Kunden für unsere Schüler an.
+Momentan nehmen wir noch Kunden für unsere Schüler an. 💅
 
-Der Preis für die Nägel hängt vom Design ab:
-Wenn Sie Natur klar wünschen, beträgt der Preis 15 €.
-Wenn Sie Natur Make-up, French, Farbe, Glitzer, Ombre oder Katzenaugen möchten, kostet es 20 €.
-Für aufwendigere Designs berechnen wir zusätzlich 1 € pro Design-Nagel, und jede Steinchen kostet 0,50 €.
+📋 Der Preis für die Nägel hängt vom Design ab:
+- Natur klar: 15 €
+- Natur Make-up, French, Farbe, Glitzer, Ombre, Katzenaugen: 20 €
+- Aufwendige Designs: +1 € pro Design-Nagel
+- Steinchen: 0,50 € pro Stück
 
-Unsere Schüler können jedoch möglicherweise sehr komplizierte Muster nicht umsetzen.
+⚠️ Unsere Schüler können sehr komplizierte Muster möglicherweise nicht umsetzen.
 
-Die Behandlungszeit beträgt in der Regel etwa 2 bis 3 Stunden, und das Ergebnis kann möglicherweise nicht perfekt sein — wir möchten Sie im Voraus darüber informieren, damit Sie Bescheid wissen.
+⏰ Die Behandlungszeit beträgt etwa 2-3 Stunden, und das Ergebnis kann möglicherweise nicht perfekt sein — wir möchten Sie im Voraus darüber informieren.
 
-Außerdem bieten wir eine Nachbesserung innerhalb von 3 Tagen an.
+✅ Nachbesserung innerhalb von 3 Tagen inklusive!
 
 Ist das für Sie in Ordnung? 💅`;
-
 // Check if message contains Modellkunde keywords
 function hasModellKeyword(text) {
   if (!text) return false;
