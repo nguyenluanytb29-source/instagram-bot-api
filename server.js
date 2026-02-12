@@ -84,23 +84,22 @@ WICHTIG:
 - Modell-Text ist lang (10+ Zeilen) - das ist OK!`;
 
 // Full Modellkunde text - used when AI summarizes
-const FULL_MODELL_TEXT = `Guten Tag 👋
+// Modell text split into 3 parts for better formatting
+const MODELL_PART_1 = `Guten Tag! Wir freuen uns sehr, dass Sie sich für unsere Dienstleistungen interessieren.
 
-Wir freuen uns sehr, dass Sie sich für unsere Dienstleistungen interessieren.
+Momentan nehmen wir noch Kunden für unsere Schüler an.`;
 
-Momentan nehmen wir noch Kunden für unsere Schüler an. 💅
+const MODELL_PART_2 = `Der Preis für die Nägel hängt vom Design ab:
+- Natur klar: 15 Euro
+- Natur Make-up, French, Farbe, Glitzer, Ombre oder Katzenaugen: 20 Euro  
+- Aufwendige Designs: +1 Euro pro Design-Nagel
+- Steinchen: 0,50 Euro pro Stück
 
-📋 Der Preis für die Nägel hängt vom Design ab:
-- Natur klar: 15 €
-- Natur Make-up, French, Farbe, Glitzer, Ombre, Katzenaugen: 20 €
-- Aufwendige Designs: +1 € pro Design-Nagel
-- Steinchen: 0,50 € pro Stück
+Unsere Schüler können sehr komplizierte Muster möglicherweise nicht umsetzen.`;
 
-⚠️ Unsere Schüler können sehr komplizierte Muster möglicherweise nicht umsetzen.
+const MODELL_PART_3 = `Die Behandlungszeit beträgt etwa 2-3 Stunden, und das Ergebnis kann möglicherweise nicht perfekt sein — wir möchten Sie im Voraus darüber informieren.
 
-⏰ Die Behandlungszeit beträgt etwa 2-3 Stunden, und das Ergebnis kann möglicherweise nicht perfekt sein — wir möchten Sie im Voraus darüber informieren.
-
-✅ Nachbesserung innerhalb von 3 Tagen inklusive!
+Nachbesserung innerhalb von 3 Tagen inklusive!
 
 Ist das für Sie in Ordnung? 💅`;
 // Check if message contains Modellkunde keywords
@@ -113,28 +112,21 @@ function hasModellKeyword(text) {
 
 // Check if this conversation is about Modellkunde
 function isModellkundeConversation(userMessage, history) {
-  // Check current message
+  // Check current message for keywords
   if (hasModellKeyword(userMessage)) {
     console.log('✓ Modell keyword in current message');
     return true;
   }
   
-  // Check if last assistant message was Modell-related
+  // Only check history if assistant just sent Modell info
   if (history && history.length > 0) {
-    // Get last 3 messages
-    const recentMessages = history.slice(-3);
+    const lastMessage = history[history.length - 1];
     
-    for (const msg of recentMessages) {
-      if (hasModellKeyword(msg.message)) {
-        console.log('✓ Modell keyword in recent history');
-        return true;
-      }
-      
-      // If assistant sent Modell info text
-      if (msg.role === 'assistant' && msg.message.includes('Wir freuen uns sehr')) {
-        console.log('✓ Modell conversation active (assistant sent info)');
-        return true;
-      }
+    // If last message was from assistant with Modell info
+    if (lastMessage.role === 'assistant' && 
+        lastMessage.message.includes('Wir freuen uns sehr')) {
+      console.log('✓ Active Modell conversation (assistant just sent info)');
+      return true;
     }
   }
   
@@ -264,11 +256,45 @@ app.post('/chat', async (req, res) => {
       const notFullText = !aiResponse.includes('Wir freuen uns sehr');
       
       if (isShortResponse && mentionsModell && notFullText) {
-        console.log(`⚠️ AI response too short (${aiResponse.length} chars) - using full Modell text`);
-        aiResponse = FULL_MODELL_TEXT;
-      } else if (aiResponse.includes('Wir freuen uns sehr')) {
-        console.log('✅ AI sent full Modell text');
-      } else {
+  console.log(`⚠️ AI response too short (${aiResponse.length} chars) - using split Modell text`);
+  
+  // Send response with 3 parts
+  res.json({
+    bot_response: MODELL_PART_1,
+    bot_response_2: MODELL_PART_2,
+    bot_response_3: MODELL_PART_3
+  });
+  
+  // Save messages
+  const fullModellText = MODELL_PART_1 + '\n\n' + MODELL_PART_2 + '\n\n' + MODELL_PART_3;
+  saveMessage(contact_id, user_name, 'user', user_message).catch(err => {
+    console.error('Failed to save user message:', err.message);
+  });
+  saveMessage(contact_id, user_name, 'assistant', fullModellText).catch(err => {
+    console.error('Failed to save assistant message:', err.message);
+  });
+  
+  return; // Exit early
+} else if (aiResponse.includes('Wir freuen uns sehr')) {
+  console.log('✅ AI sent full Modell text - splitting for better format');
+  
+  // Split AI response too
+  res.json({
+    bot_response: MODELL_PART_1,
+    bot_response_2: MODELL_PART_2,
+    bot_response_3: MODELL_PART_3
+  });
+  
+  // Save messages
+  saveMessage(contact_id, user_name, 'user', user_message).catch(err => {
+    console.error('Failed to save user message:', err.message);
+  });
+  saveMessage(contact_id, user_name, 'assistant', aiResponse).catch(err => {
+    console.error('Failed to save assistant message:', err.message);
+  });
+  
+  return; // Exit early
+} else {
         console.log('ℹ️ Modellkunde conversation but not asking for info yet');
       }
     }
