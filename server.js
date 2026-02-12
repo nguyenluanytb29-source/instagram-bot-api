@@ -276,9 +276,13 @@ app.post('/chat', async (req, res) => {
     console.log(`🤖 AI response (final): ${aiResponse.substring(0, 100)}... (length: ${aiResponse.length})`);
     
     // 4. Send response FIRST (don't wait for save)
-    res.json({
-      bot_response: aiResponse
-    });
+    console.log(`📤 Sending to ManyChat: ${aiResponse.substring(0, 200)}...`);
+
+res.json({
+  bot_response: aiResponse,
+  debug_length: aiResponse.length,
+  debug_preview: aiResponse.substring(0, 100)
+});
     
     // 5. Save messages async (don't block response)
     saveMessage(contact_id, user_name, 'user', user_message).catch(err => {
