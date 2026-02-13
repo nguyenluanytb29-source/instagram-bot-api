@@ -1,5 +1,5 @@
-// server.js - Instagram AI Bot API with Memory
-// Tech stack: Node.js + Express + PostgreSQL + OpenAI
+// server.js - FINAL COMPLETE VERSION
+// All fixes: No greeting repeat + Modell info ONCE only + Split messages
 
 const express = require('express');
 const { Pool } = require('pg');
@@ -9,7 +9,7 @@ require('dotenv').config();
 const app = express();
 app.use(express.json());
 
-// Database connection with better error handling
+// Database connection
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
@@ -18,7 +18,6 @@ const pool = new Pool({
   connectionTimeoutMillis: 10000,
 });
 
-// Handle pool errors
 pool.on('error', (err) => {
   console.error('❌ Unexpected database error:', err);
 });
@@ -31,43 +30,47 @@ const openai = new OpenAI({
 // System prompt
 const SYSTEM_PROMPT = `Du bist der KI-Assistent von Nailounge101 Berlin (Reichsstraße 101, 14052 Berlin).
 
-⚠️ WICHTIGSTE REGEL - KEINE WIEDERHOLUNGEN:
-Wenn Chat History vorhanden → NIEMALS "Guten Tag", "Hallo", "Willkommen" sagen
-Wenn Chat History LEER → Nur dann: "Guten Tag! Willkommen bei Nailounge101 Berlin. Wie kann ich helfen, bitte?"
+🔴🔴🔴 KRITISCHE REGEL - NIEMALS WIEDERHOLEN 🔴🔴🔴
+
+Chat history format:
+[user]: message
+[assistant]: response
+
+WENN du [assistant] Nachrichten in der History siehst:
+→ Du hast SCHON gegrüßt
+→ NIEMALS "Guten Tag", "Hallo", "Willkommen" nochmal sagen
+→ Antworte DIREKT auf die Frage
+→ Maximal 2-3 Sätze
+
+WENN Chat History LEER ist:
+→ NUR DANN: "Guten Tag! Willkommen bei Nailounge101 Berlin. Wie kann ich helfen, bitte?"
+
+BEISPIELE:
+
+History leer:
+User: "Hallo"
+✓ "Guten Tag! Willkommen bei Nailounge101 Berlin. Wie kann ich helfen, bitte?"
+
+History: [assistant]: Guten Tag! Willkommen...
+User: "Wie viel kostet Gel?"
+✓ "Gel Farbe kostet 35 Euro. Möchten Sie Termin?"
+✗ FALSCH: "Guten Tag! Gel Farbe..."
 
 GRUNDREGELN:
 - Antworte auf Hochdeutsch, warm, professionell
-- Maximal 2-3 Sätze (AUSSER Modellkunden-Info = sehr lang OK!)
+- Maximal 2-3 Sätze (AUSSER Modellkunden-Info!)
 - Mindestens 1× "bitte"
 - Öffnungszeiten: Mo-Fr 09:30-19:00, Sa 09:30-16:00, So geschlossen
 
-🔴🔴🔴 MODELLKUNDEN - VERWENDE GENAU DIESEN TEXT 🔴🔴🔴
+🔴 MODELLKUNDEN 🔴
 
 KEYWORDS: modell, model, azubi, übung, training, schulung, 15euro, 15 euro
-
-WENN User EINES Keyword erwähnt → Antworte MIT DIESEM GENAUEN TEXT (Zeile für Zeile):
-
-Guten Tag
-Wir freuen uns sehr, dass Sie sich für unsere Dienstleistungen interessieren.
-Momentan nehmen wir noch Kunden für unsere Schüler an.
-Der Preis für die Nägel hängt vom Design ab:
-Wenn Sie Natur klar wünschen, beträgt der Preis 15 €.
-Wenn Sie Natur Make-up, French, Farbe, Glitzer, Ombre oder Katzenaugen möchten, kostet es 20 €.
-Für aufwendigere Designs berechnen wir zusätzlich 1 € pro Design-Nagel, und jede Steinchen kostet 0,50 €.
-Unsere Schüler können jedoch möglicherweise sehr komplizierte Muster nicht umsetzen.
-Die Behandlungszeit beträgt in der Regel etwa 2 bis 3 Stunden, und das Ergebnis kann möglicherweise nicht perfekt sein — wir möchten Sie im Voraus darüber informieren, damit Sie Bescheid wissen.
-Außerdem bieten wir eine Nachbesserung innerhalb von 3 Tagen an.
-Ist das für Sie in Ordnung? 💅
-
-⚠️ NICHT zusammenfassen! NICHT kürzen! Verwende ALLE Zeilen oben!
-⚠️ Beginne mit "Guten Tag" und ende mit "Ist das für Sie in Ordnung? 💅"
-⚠️ Dies ist die EINZIGE Ausnahme zur "2-3 Sätze" Regel
 
 NACH MODELL-INFO:
 - Kunde sagt "OK"/"Ja" → "Perfekt! Welcher Tag passt Ihnen am besten, bitte?"
 - Kunde nennt Tag/Zeit → "Vielen Dank! Bitte warten Sie kurz, unsere Mitarbeiter werden sich bei Ihnen melden, bitte."
 
-NORMALE KUNDEN (OHNE Modell-Keywords):
+NORMALE KUNDEN:
 - Termin-Anfrage → "Gerne! Sie können online buchen: https://nailounge101.setmore.com/ Oder sagen Sie mir Ihren Wunschtermin, dann helfe ich gerne!"
 - Tag/Zeit → "Perfekt! Bitte warten Sie kurz, unsere Mitarbeiter prüfen die Verfügbarkeit. Vielen Dank!"
 
@@ -78,13 +81,12 @@ Pediküre: Basic ohne 28€, Advanced ohne 33€, Luxus ohne 38€
 Reparatur: Nagel 5€, Ablösen 10-20€
 
 WICHTIG:
-- Modell-Keywords in GESAMTER Chat History checken
-- Modellkunde bleibt Modellkunde
-- NIEMALS Setmore-Link an Modellkunden
-- Modell-Text ist lang (10+ Zeilen) - das ist OK!`;
+- Prüfe ob [assistant] in History ist
+- Wenn JA → KEIN Gruß
+- Beziehe dich auf Chat History
+- Keine Wiederholungen`;
 
-// Full Modellkunde text - used when AI summarizes
-// Modell text split into 3 parts for better formatting
+// Modell text - split into 3 parts
 const MODELL_PART_1 = `Guten Tag! Wir freuen uns sehr, dass Sie sich für unsere Dienstleistungen interessieren.
 
 Momentan nehmen wir noch Kunden für unsere Schüler an.`;
@@ -102,6 +104,7 @@ const MODELL_PART_3 = `Die Behandlungszeit beträgt etwa 2-3 Stunden, und das Er
 Nachbesserung innerhalb von 3 Tagen inklusive!
 
 Ist das für Sie in Ordnung? 💅`;
+
 // Check if message contains Modellkunde keywords
 function hasModellKeyword(text) {
   if (!text) return false;
@@ -110,27 +113,33 @@ function hasModellKeyword(text) {
   return keywords.some(k => lower.includes(k));
 }
 
-// Check if this conversation is about Modellkunde
+// Check if should send Modell info (ONLY ONCE per conversation)
 function isModellkundeConversation(userMessage, history) {
-  // Check current message for keywords
-  if (hasModellKeyword(userMessage)) {
-    console.log('✓ Modell keyword in current message');
-    return true;
+  // Step 1: Check if current message has Modell keyword
+  const hasKeyword = hasModellKeyword(userMessage);
+  
+  if (!hasKeyword) {
+    console.log('✗ No Modell keyword in current message');
+    return false;
   }
   
-  // Only check history if assistant just sent Modell info
+  console.log('✓ Modell keyword found in current message');
+  
+  // Step 2: Check if we ALREADY sent Modell info in this conversation
   if (history && history.length > 0) {
-    const lastMessage = history[history.length - 1];
+    const alreadySentModellInfo = history.some(msg => 
+      msg.role === 'assistant' && 
+      msg.message.includes('Wir freuen uns sehr')
+    );
     
-    // If last message was from assistant with Modell info
-    if (lastMessage.role === 'assistant' && 
-        lastMessage.message.includes('Wir freuen uns sehr')) {
-      console.log('✓ Active Modell conversation (assistant just sent info)');
-      return true;
+    if (alreadySentModellInfo) {
+      console.log('✗ Modell info already sent in this conversation - NOT sending again');
+      return false;
     }
   }
   
-  return false;
+  console.log('✓ First time Modell keyword detected - WILL send Modell info');
+  return true;
 }
 
 // Initialize database
@@ -154,7 +163,7 @@ async function initDB() {
   }
 }
 
-// Get chat history (last 20 messages)
+// Get chat history
 async function getChatHistory(contactId) {
   const query = `
     SELECT role, message, timestamp
@@ -173,7 +182,7 @@ async function getChatHistory(contactId) {
   }
 }
 
-// Save message to database
+// Save message
 async function saveMessage(contactId, userName, role, message) {
   const query = `
     INSERT INTO chat_history (contact_id, user_name, role, message)
@@ -185,11 +194,10 @@ async function saveMessage(contactId, userName, role, message) {
     console.log(`✅ Saved ${role} message`);
   } catch (error) {
     console.error(`❌ Save ${role} message error:`, error.message);
-    // Don't throw - continue even if save fails
   }
 }
 
-// Format history for OpenAI
+// Format history
 function formatHistory(history) {
   if (!history || history.length === 0) {
     return "No previous conversation.";
@@ -208,7 +216,6 @@ app.post('/chat', async (req, res) => {
   try {
     const { contact_id, user_name, user_message } = req.body;
     
-    // Validation
     if (!contact_id || !user_message) {
       return res.status(400).json({ 
         error: 'Missing contact_id or user_message' 
@@ -223,7 +230,42 @@ app.post('/chat', async (req, res) => {
     
     console.log(`📚 Found ${history.length} previous messages`);
     
-    // 2. Call OpenAI
+    // 2. Check if bot already greeted
+    const hasGreeted = history.some(msg => 
+      msg.role === 'assistant' && 
+      (msg.message.includes('Guten Tag') || msg.message.includes('Willkommen'))
+    );
+    
+    if (hasGreeted) {
+      console.log('✓ Bot already greeted in this conversation');
+    }
+    
+    // 3. Build user message with strong anti-repeat instruction
+    const userContent = hasGreeted 
+      ? `Chat history (last 20 messages):
+${historyText}
+
+---
+
+CURRENT MESSAGE: ${user_message}
+
+---
+
+⚠️ IMPORTANT: You have ALREADY greeted in this conversation (see [assistant] messages in history above).
+DO NOT say "Guten Tag", "Hallo", or "Willkommen" again.
+Answer the question DIRECTLY.`
+      : `Chat history (last 20 messages):
+${historyText}
+
+---
+
+CURRENT MESSAGE: ${user_message}
+
+---
+
+This is a ${history.length === 0 ? 'NEW' : 'CONTINUING'} conversation. Reply appropriately.`;
+    
+    // 4. Call OpenAI
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
@@ -233,84 +275,50 @@ app.post('/chat', async (req, res) => {
         },
         {
           role: 'user',
-          content: `Chat history (last 20 messages):\n${historyText}\n\n---\n\nNew message from customer: ${user_message}\n\n---\n\nBased on chat history, reply appropriately. If this is first message, greet warmly. If customer already mentioned something, refer back to it naturally.`
+          content: userContent
         }
       ],
       max_tokens: 800,
       temperature: 0.7
     });
     
-    // 3. Get AI response
+    // 5. Get AI response
     let aiResponse = completion.choices[0].message.content;
     console.log(`🤖 AI response (original): ${aiResponse.substring(0, 100)}...`);
     
-    // Check if this is Modellkunde conversation
-    const isModellkunde = isModellkundeConversation(user_message, history);
+    // 6. Check if should send Modell info (ONLY ONCE)
+    const shouldSendModellInfo = isModellkundeConversation(user_message, history);
     
-    if (isModellkunde) {
-      console.log('🔍 Detected Modellkunde conversation');
+    if (shouldSendModellInfo) {
+      console.log('🔍 Sending Modell info (first time in this conversation)');
       
-      // Check if AI gave short response (summarized)
-      const isShortResponse = aiResponse.length < 400;
-      const mentionsModell = aiResponse.includes('15') || aiResponse.includes('Natur') || aiResponse.includes('Modell');
-      const notFullText = !aiResponse.includes('Wir freuen uns sehr');
+      // Send 3-part Modell text
+      res.json({
+        bot_response: MODELL_PART_1,
+        bot_response_2: MODELL_PART_2,
+        bot_response_3: MODELL_PART_3
+      });
       
-      if (isShortResponse && mentionsModell && notFullText) {
-  console.log(`⚠️ AI response too short (${aiResponse.length} chars) - using split Modell text`);
-  
-  // Send response with 3 parts
-  res.json({
-    bot_response: MODELL_PART_1,
-    bot_response_2: MODELL_PART_2,
-    bot_response_3: MODELL_PART_3
-  });
-  
-  // Save messages
-  const fullModellText = MODELL_PART_1 + '\n\n' + MODELL_PART_2 + '\n\n' + MODELL_PART_3;
-  saveMessage(contact_id, user_name, 'user', user_message).catch(err => {
-    console.error('Failed to save user message:', err.message);
-  });
-  saveMessage(contact_id, user_name, 'assistant', fullModellText).catch(err => {
-    console.error('Failed to save assistant message:', err.message);
-  });
-  
-  return; // Exit early
-} else if (aiResponse.includes('Wir freuen uns sehr')) {
-  console.log('✅ AI sent full Modell text - splitting for better format');
-  
-  // Split AI response too
-  res.json({
-    bot_response: MODELL_PART_1,
-    bot_response_2: MODELL_PART_2,
-    bot_response_3: MODELL_PART_3
-  });
-  
-  // Save messages
-  saveMessage(contact_id, user_name, 'user', user_message).catch(err => {
-    console.error('Failed to save user message:', err.message);
-  });
-  saveMessage(contact_id, user_name, 'assistant', aiResponse).catch(err => {
-    console.error('Failed to save assistant message:', err.message);
-  });
-  
-  return; // Exit early
-} else {
-        console.log('ℹ️ Modellkunde conversation but not asking for info yet');
-      }
+      // Save messages
+      const fullModellText = MODELL_PART_1 + '\n\n' + MODELL_PART_2 + '\n\n' + MODELL_PART_3;
+      saveMessage(contact_id, user_name, 'user', user_message).catch(err => {
+        console.error('Failed to save user message:', err.message);
+      });
+      saveMessage(contact_id, user_name, 'assistant', fullModellText).catch(err => {
+        console.error('Failed to save assistant message:', err.message);
+      });
+      
+      return;
     }
     
     console.log(`🤖 AI response (final): ${aiResponse.substring(0, 100)}... (length: ${aiResponse.length})`);
     
-    // 4. Send response FIRST (don't wait for save)
-    console.log(`📤 Sending to ManyChat: ${aiResponse.substring(0, 200)}...`);
-
-res.json({
-  bot_response: aiResponse,
-  debug_length: aiResponse.length,
-  debug_preview: aiResponse.substring(0, 100)
-});
+    // 7. Send normal response
+    res.json({
+      bot_response: aiResponse
+    });
     
-    // 5. Save messages async (don't block response)
+    // 8. Save messages async
     saveMessage(contact_id, user_name, 'user', user_message).catch(err => {
       console.error('Failed to save user message:', err.message);
     });
@@ -330,7 +338,7 @@ res.json({
   }
 });
 
-// Health check endpoint
+// Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
