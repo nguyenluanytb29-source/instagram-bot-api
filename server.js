@@ -290,14 +290,30 @@ console.log(`🔍 DEBUG - AI response length: ${aiResponse.length}`);
 console.log(`🔍 DEBUG - shouldSendModellInfo: ${shouldSendModellInfo}`);
     
     if (shouldSendModellInfo) {
-      console.log('🔍 Sending Modell info (first time in this conversation)');
-      
-      // Send 3-part Modell text
-      res.json({
-        bot_response: MODELL_PART_1,
-        bot_response_2: MODELL_PART_2,
-        bot_response_3: MODELL_PART_3
-      });
+  console.log('🔍 Sending Modell info');
+  
+  // Check if bot already greeted
+  const alreadyGreeted = history.some(msg => 
+    msg.role === 'assistant'
+  );
+  
+  // Dynamic Part 1 - with or without greeting
+  const modellPart1 = alreadyGreeted
+    ? `Wir freuen uns sehr, dass Sie sich für unsere Dienstleistungen interessieren.
+
+Momentan nehmen wir noch Kunden für unsere Schüler an.`
+    : `Guten Tag! Wir freuen uns sehr, dass Sie sich für unsere Dienstleistungen interessieren.
+
+Momentan nehmen wir noch Kunden für unsere Schüler an.`;
+  
+  console.log(`📝 Modell Part 1 ${alreadyGreeted ? 'WITHOUT' : 'WITH'} greeting`);
+  
+  // Send 3-part Modell text
+  res.json({
+    bot_response: modellPart1,
+    bot_response_2: MODELL_PART_2,
+    bot_response_3: MODELL_PART_3
+  });
       
       // Save messages
       const fullModellText = MODELL_PART_1 + '\n\n' + MODELL_PART_2 + '\n\n' + MODELL_PART_3;
