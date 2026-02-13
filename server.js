@@ -264,6 +264,11 @@ CURRENT MESSAGE: ${user_message}
 ---
 
 This is a ${history.length === 0 ? 'NEW' : 'CONTINUING'} conversation. Reply appropriately.`;
+
+    // DEBUG: Check keyword detection
+console.log(`🔍 DEBUG - User message: "${user_message}"`);
+console.log(`🔍 DEBUG - hasModellKeyword: ${hasModellKeyword(user_message)}`);
+console.log(`🔍 DEBUG - History length: ${history.length}`);
     
     // 4. Call OpenAI
     const completion = await openai.chat.completions.create({
@@ -286,8 +291,15 @@ This is a ${history.length === 0 ? 'NEW' : 'CONTINUING'} conversation. Reply app
     let aiResponse = completion.choices[0].message.content;
     console.log(`🤖 AI response (original): ${aiResponse.substring(0, 100)}...`);
     
+    // DEBUG: Check AI response content
+console.log(`🔍 DEBUG - AI includes "Wir freuen uns": ${aiResponse.includes('Wir freuen uns sehr')}`);
+console.log(`🔍 DEBUG - AI response length: ${aiResponse.length}`);
+    
     // 6. Check if should send Modell info (ONLY ONCE)
     const shouldSendModellInfo = isModellkundeConversation(user_message, history);
+
+    // DEBUG: Final decision
+console.log(`🔍 DEBUG - shouldSendModellInfo: ${shouldSendModellInfo}`);
     
     if (shouldSendModellInfo) {
       console.log('🔍 Sending Modell info (first time in this conversation)');
