@@ -354,10 +354,12 @@ Momentan nehmen wir noch Kunden für unsere Schüler an.`;
     
     console.log(`🤖 AI response (final): ${aiResponse.substring(0, 100)}... (length: ${aiResponse.length})`);
     
-    // 7. Send normal response
-    res.json({
-      bot_response: aiResponse
-    });
+    // 7. Send normal response (reset _2 and _3 to prevent ManyChat cache)
+res.json({
+  bot_response: aiResponse,
+  bot_response_2: "",
+  bot_response_3: ""
+});
     
     // 8. Save messages async
     saveMessage(contact_id, user_name, 'user', user_message).catch(err => {
@@ -372,10 +374,12 @@ Momentan nehmen wir noch Kunden für unsere Schüler an.`;
     console.error('❌ Error:', error);
     
     return res.status(500).json({
-      success: false,
-      error: 'Internal server error',
-      bot_response: 'Entschuldigung, es gab einen technischen Fehler. Bitte versuchen Sie es erneut.'
-    });
+  success: false,
+  error: 'Internal server error',
+  bot_response: 'Entschuldigung, es gab einen technischen Fehler. Bitte versuchen Sie es erneut.',
+  bot_response_2: "",
+  bot_response_3: ""
+});
   }
 });
 
