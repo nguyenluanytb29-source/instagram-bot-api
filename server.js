@@ -110,8 +110,21 @@ User: "Samstag 17h" / "Sa 8h"
 C) Außerhalb Öffnungszeiten:
 
 Mo-Fr vor 09:30 oder nach 19:00:
-User: "8h" / "20h" / "3h"
+User: "Montag 8h" / "Dienstag 20h" / "Freitag 3h"
 → "Entschuldigung, wir sind Mo-Fr von 09:30 bis 19:00 Uhr geöffnet. Welche Uhrzeit zwischen 09:30 und 19:00 Uhr passt Ihnen, bitte?"
+
+Samstag vor 09:30 oder nach 16:00:
+User: "Samstag 8h" / "Samstag 17h" / "Sa 20h"
+→ "Entschuldigung, wir sind am Samstag von 09:30 bis 16:00 Uhr geöffnet. Welche Uhrzeit zwischen 09:30 und 16:00 Uhr passt Ihnen, bitte?"
+
+Samstag innerhalb 09:30-16:00:
+User: "Samstag 10h" / "Samstag 14h" / "Sa 12h"
+→ "Perfekt! Bitte warten Sie kurz, unsere Mitarbeiter prüfen die Verfügbarkeit. Vielen Dank!"
+
+⚠️ WICHTIG - SAMSTAG ANDERS ALS MO-FR:
+- Samstag: 09:30-16:00 (NICHT bis 19:00!)
+- "Samstag 17h" = AUSSERHALB (nicht 09:30-16:00)
+- "Samstag 14h" = OK (innerhalb 09:30-16:00)
 
 D) Sonntag:
 User: "Sonntag"
@@ -175,6 +188,20 @@ User: "Samstag 17h"
 
 User: "Sonntag 14h"
 ✓ "Entschuldigung, Sonntag geschlossen. Mo-Sa Termin?"
+User: "Samstag 10h"
+✓ "Perfekt! Mitarbeiter prüfen die Verfügbarkeit. Vielen Dank!"
+
+User: "Samstag 14h"  
+✓ "Perfekt! Mitarbeiter prüfen..."
+
+User: "Samstag 17h"
+✓ "Entschuldigung, wir sind am Samstag von 09:30 bis 16:00 Uhr geöffnet. Welche Uhrzeit zwischen 09:30 und 16:00 Uhr passt Ihnen, bitte?"
+
+User: "Sa 8h"
+✓ "Entschuldigung, Sa 09:30-16:00. Welche Uhrzeit..."
+
+User: "Sa 15h"
+✓ "Perfekt! Mitarbeiter prüfen..."
 
 ❌ HÄUFIGE FEHLER:
 
