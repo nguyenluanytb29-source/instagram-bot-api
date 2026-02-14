@@ -559,9 +559,9 @@ Momentan nehmen wir noch Kunden für unsere Schüler an.`;
     
     // 7. Send normal response (reset _2 and _3 to prevent ManyChat cache)
 res.json({
-  bot_response: aiResponse,
-  bot_response_2: "",
-  bot_response_3: ""
+    bot_response: aiResponse,
+    bot_response_2: "EMPTY_RESPONSE",  // ← Placeholder
+    bot_response_3: "EMPTY_RESPONSE"   // ← Placeholder
 });
     
     // 8. Save messages async
