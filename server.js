@@ -47,7 +47,17 @@ WENN Chat History LEER ist:
 → NUR DANN: "Guten Tag! Willkommen bei Nailounge101 Berlin. Wie kann ich helfen, bitte?"
 
 BUCHUNG (NORMALE KUNDEN):
+🔴🔴🔴 KRITISCH - ÖFFNUNGSZEITEN 🔴🔴🔴
 
+MONTAG - FREITAG: 09:30 bis 19:00 Uhr
+SAMSTAG: 09:30 bis 16:00 Uhr (NICHT bis 19:00!)
+SONNTAG: Geschlossen
+
+⚠️ SAMSTAG IST ANDERS:
+- Samstag schließt um 16:00 (NICHT 19:00!)
+- "Samstag 17h" = AUSSERHALB
+- "Samstag 15h" = OK
+- IMMER prüfen ob Tag = Samstag → dann 16:00 statt 19:00
 🔗 TERMIN-ANFRAGE (SEHR WICHTIG!):
 
 Wenn Kunde fragt nach Termin (beliebige Form):
@@ -315,7 +325,7 @@ Ist das für Sie in Ordnung? 💅`;
 // Check if message contains Modellkunde keywords
 function hasModellKeyword(text) {
   if (!text) return false;
-  const keywords = ['modell', 'model', 'azubi', 'auzubi' , 'übung', 'training', 'schulung', '15euro', '15 euro', '15 €', '15€'];
+  const keywords = ['modell', 'model', 'azubi','auzubi', 'übung', 'training', 'schulung', '15euro', '15 euro', '15 €', '15€'];
   const lower = text.toLowerCase();
   return keywords.some(k => lower.includes(k));
 }
@@ -324,27 +334,27 @@ function hasModellKeyword(text) {
 function isModellkundeConversation(userMessage, history) {
   // Step 1: Check if current message has Modell keyword
   const hasKeyword = hasModellKeyword(userMessage);
-
+  
   if (!hasKeyword) {
     console.log('✗ No Modell keyword in current message');
     return false;
   }
-
+  
   console.log('✓ Modell keyword found in current message');
-
+  
   // Step 2: Check if we ALREADY sent Modell info in this conversation
   if (history && history.length > 0) {
-    const alreadySentModellInfo = history.some(msg =>
-      msg.role === 'assistant' &&
+    const alreadySentModellInfo = history.some(msg => 
+      msg.role === 'assistant' && 
       msg.message.includes('Wir freuen uns sehr')
     );
-
+    
     if (alreadySentModellInfo) {
       console.log('✗ Modell info already sent in this conversation - NOT sending again');
       return false;
     }
   }
-
+  
   console.log('✓ First time Modell keyword detected - WILL send Modell info');
   return true;
 }
@@ -372,7 +382,7 @@ async function initDB() {
       last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `;
-
+  
   try {
     await pool.query(createTableQuery);
     await pool.query(createSummaryTableQuery);
@@ -391,7 +401,7 @@ async function getChatHistory(contactId) {
     ORDER BY timestamp DESC
     LIMIT 50
   `;
-
+  
   try {
     const result = await pool.query(query, [contactId]);
     return result.rows.reverse();
@@ -486,7 +496,7 @@ async function saveMessage(contactId, userName, role, message) {
     INSERT INTO chat_history (contact_id, user_name, role, message)
     VALUES ($1, $2, $3, $4)
   `;
-
+  
   try {
     await pool.query(query, [contactId, userName, role, message]);
     console.log(`✅ Saved ${role} message`);
@@ -500,7 +510,7 @@ function formatHistory(history) {
   if (!history || history.length === 0) {
     return "No previous conversation.";
   }
-
+  
   return history
     .map(msg => {
       const cleanMessage = msg.message.replace(/"/g, "'").replace(/\n/g, " ");
@@ -513,19 +523,19 @@ function formatHistory(history) {
 app.post('/chat', async (req, res) => {
   try {
     const { contact_id, user_name, user_message } = req.body;
-
+    
     if (!contact_id || !user_message) {
-      return res.status(400).json({
-        error: 'Missing contact_id or user_message'
+      return res.status(400).json({ 
+        error: 'Missing contact_id or user_message' 
       });
     }
-
+    
     console.log(`📩 New message from ${user_name} (${contact_id}): ${user_message}`);
-
-    // 1. Get chat history (now up to 50 messages)
+    
+    // 1. Get chat history
     const history = await getChatHistory(contact_id);
     const historyText = formatHistory(history);
-
+    
     console.log(`📚 Found ${history.length} previous messages`);
 
     // NEW: Get long-term summary for this customer (cross-day memory)
@@ -536,23 +546,23 @@ app.post('/chat', async (req, res) => {
       summaryContext = `\n📋 KUNDENZUSAMMENFASSUNG (aus früheren Gesprächen, Stand: ${updatedAt}):\n${existingSummary.summary}\n`;
       console.log(`📋 Found existing summary for ${contact_id}`);
     }
-
+    
     // 2. Check if bot already greeted
     // Search full history (50 msgs) to avoid re-greeting across days
-    const hasGreeted = history.some(msg =>
-      msg.role === 'assistant' &&
+    const hasGreeted = history.some(msg => 
+      msg.role === 'assistant' && 
       (msg.message.includes('Guten Tag') || msg.message.includes('Willkommen'))
     );
 
     // Also treat returning customer (has summary) as already greeted
     const isReturningCustomer = existingSummary !== null;
     const shouldSkipGreeting = hasGreeted || isReturningCustomer;
-
+    
     if (shouldSkipGreeting) {
       console.log(`✓ Skip greeting - hasGreeted: ${hasGreeted}, isReturning: ${isReturningCustomer}`);
     }
-
-    // 3. Build user message with strong anti-repeat instruction + summary context
+    
+    // 3. Build user message with strong anti-repeat instruction
     const userContent = shouldSkipGreeting
       ? `${summaryContext}
 Chat history (last 50 messages):
@@ -584,10 +594,10 @@ This is a ${history.length === 0 ? 'NEW' : 'CONTINUING'} conversation. Reply app
     console.log(`🔍 DEBUG - User message: "${user_message}"`);
     console.log(`🔍 DEBUG - hasModellKeyword: ${hasModellKeyword(user_message)}`);
     console.log(`🔍 DEBUG - History length: ${history.length}`);
-
-    // 4. Call OpenAI - upgraded to gpt-4o for smarter contextual responses
+    
+    // 4. Call OpenAI
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -601,29 +611,29 @@ This is a ${history.length === 0 ? 'NEW' : 'CONTINUING'} conversation. Reply app
       max_tokens: 800,
       temperature: 0.7
     });
-
+    
     // 5. Get AI response
     let aiResponse = completion.choices[0].message.content;
     console.log(`🤖 AI response (original): ${aiResponse.substring(0, 100)}...`);
-
+    
     // DEBUG: Check AI response content
     console.log(`🔍 DEBUG - AI includes "Wir freuen uns": ${aiResponse.includes('Wir freuen uns sehr')}`);
     console.log(`🔍 DEBUG - AI response length: ${aiResponse.length}`);
-
+    
     // 6. Check if should send Modell info (ONLY ONCE)
     const shouldSendModellInfo = isModellkundeConversation(user_message, history);
 
     // DEBUG: Final decision
     console.log(`🔍 DEBUG - shouldSendModellInfo: ${shouldSendModellInfo}`);
-
+    
     if (shouldSendModellInfo) {
       console.log('🔍 Sending Modell info');
-
+      
       // Check if bot already greeted
-      const alreadyGreeted = history.some(msg =>
+      const alreadyGreeted = history.some(msg => 
         msg.role === 'assistant'
       );
-
+      
       // Dynamic Part 1 - with or without greeting
       const modellPart1 = alreadyGreeted
         ? `Wir freuen uns sehr, dass Sie sich für unsere Dienstleistungen interessieren.
@@ -632,22 +642,22 @@ Momentan nehmen wir noch Kunden für unsere Schüler an.`
         : `Guten Tag! Wir freuen uns sehr, dass Sie sich für unsere Dienstleistungen interessieren.
 
 Momentan nehmen wir noch Kunden für unsere Schüler an.`;
-
+      
       console.log(`📝 Modell Part 1 ${alreadyGreeted ? 'WITHOUT' : 'WITH'} greeting`);
-
+      
       // Send 3-part Modell text
       res.json({
         bot_response: modellPart1,
         bot_response_2: MODELL_PART_2,
         bot_response_3: MODELL_PART_3
       });
-
+          
       // Save messages
       const fullModellText = MODELL_PART_1 + '\n\n' + MODELL_PART_2 + '\n\n' + MODELL_PART_3;
-      await saveMessage(contact_id, user_name, 'user', user_message).catch(err => {
+      saveMessage(contact_id, user_name, 'user', user_message).catch(err => {
         console.error('Failed to save user message:', err.message);
       });
-      await saveMessage(contact_id, user_name, 'assistant', fullModellText).catch(err => {
+      saveMessage(contact_id, user_name, 'assistant', fullModellText).catch(err => {
         console.error('Failed to save assistant message:', err.message);
       });
 
@@ -657,25 +667,25 @@ Momentan nehmen wir noch Kunden für unsere Schüler an.`;
           console.error('Failed to update summary:', err.message);
         });
       });
-
+      
       return;
     }
-
+    
     console.log(`🤖 AI response (final): ${aiResponse.substring(0, 100)}... (length: ${aiResponse.length})`);
-
-    // 7. Send normal response (reset _2 and _3 to prevent ManyChat cache)
+    
+    // 7. Send normal response
     res.json({
       bot_response: aiResponse,
-      bot_response_2: "",
-      bot_response_3: ""
+      bot_response_2: "EMPTY_RESPONSE",  // ← Placeholder
+      bot_response_3: "EMPTY_RESPONSE"   // ← Placeholder
     });
-
+    
     // 8. Save messages async
-    await saveMessage(contact_id, user_name, 'user', user_message).catch(err => {
+    saveMessage(contact_id, user_name, 'user', user_message).catch(err => {
       console.error('Failed to save user message:', err.message);
     });
-
-    await saveMessage(contact_id, user_name, 'assistant', aiResponse).catch(err => {
+    
+    saveMessage(contact_id, user_name, 'assistant', aiResponse).catch(err => {
       console.error('Failed to save assistant message:', err.message);
     });
 
@@ -685,16 +695,16 @@ Momentan nehmen wir noch Kunden für unsere Schüler an.`;
         console.error('Failed to update summary:', err.message);
       });
     });
-
+    
   } catch (error) {
     console.error('❌ Error:', error);
-
+    
     return res.status(500).json({
       success: false,
       error: 'Internal server error',
       bot_response: 'Entschuldigung, es gab einen technischen Fehler. Bitte versuchen Sie es erneut.',
-      bot_response_2: "",
-      bot_response_3: ""
+      bot_response_2: "EMPTY_RESPONSE",  // ← Placeholder
+      bot_response_3: "EMPTY_RESPONSE"   // ← Placeholder
     });
   }
 });
@@ -704,7 +714,7 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Test endpoint - view history
+// Test endpoint
 app.get('/history/:contactId', async (req, res) => {
   try {
     const history = await getChatHistory(req.params.contactId);
