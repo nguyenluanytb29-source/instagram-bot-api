@@ -315,7 +315,7 @@ Ist das für Sie in Ordnung? 💅`;
 // Check if message contains Modellkunde keywords
 function hasModellKeyword(text) {
   if (!text) return false;
-  const keywords = ['modell', 'model', 'azubi', 'übung', 'training', 'schulung', '15euro', '15 euro', '15 €', '15€'];
+  const keywords = ['modell', 'model', 'azubi', 'auzubi' , 'übung', 'training', 'schulung', '15euro', '15 euro', '15 €', '15€'];
   const lower = text.toLowerCase();
   return keywords.some(k => lower.includes(k));
 }
