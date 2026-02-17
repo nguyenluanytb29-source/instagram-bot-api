@@ -325,7 +325,7 @@ Ist das für Sie in Ordnung? 💅`;
 // Check if message contains Modellkunde keywords
 function hasModellKeyword(text) {
   if (!text) return false;
-  const keywords = ['modell', 'model', 'azubi','auzubi', 'übung', 'training', 'schulung', '15euro', '15 euro', '15 €', '15€'];
+  const keywords = ['modell', 'model', 'azubi', 'übung', 'training', 'schulung', '15euro', '15 euro', '15 €', '15€'];
   const lower = text.toLowerCase();
   return keywords.some(k => lower.includes(k));
 }
@@ -450,7 +450,7 @@ async function updateConversationSummary(contactId, userName, history) {
       .join('\n');
 
     const summaryCompletion = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -563,8 +563,21 @@ app.post('/chat', async (req, res) => {
     }
     
     // 3. Build user message with strong anti-repeat instruction
+    // Inject current date/time so bot can correctly resolve "today", "tomorrow", etc.
+    const now = new Date();
+    const berlinTime = now.toLocaleString('de-DE', {
+      timeZone: 'Europe/Berlin',
+      weekday: 'long',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    const dateContext = `🕐 AKTUELLES DATUM & UHRZEIT (Berlin): ${berlinTime}\n`;
+
     const userContent = shouldSkipGreeting
-      ? `${summaryContext}
+      ? `${dateContext}${summaryContext}
 Chat history (last 50 messages):
 ${historyText}
 
@@ -578,7 +591,7 @@ CURRENT MESSAGE: ${user_message}
 DO NOT say "Guten Tag", "Hallo", or "Willkommen" again.
 ${isReturningCustomer && !hasGreeted ? '⚠️ This is a RETURNING CUSTOMER from a previous day. Continue the conversation naturally based on the summary above.' : ''}
 Answer the question DIRECTLY.`
-      : `${summaryContext}
+      : `${dateContext}${summaryContext}
 Chat history (last 50 messages):
 ${historyText}
 
@@ -595,9 +608,9 @@ This is a ${history.length === 0 ? 'NEW' : 'CONTINUING'} conversation. Reply app
     console.log(`🔍 DEBUG - hasModellKeyword: ${hasModellKeyword(user_message)}`);
     console.log(`🔍 DEBUG - History length: ${history.length}`);
     
-    // 4. Call OpenAI
+    // 4. Call OpenAI - upgraded to gpt-4.1 (better instruction following, cheaper than gpt-4o)
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-4.1-2025-04-14',
       messages: [
         {
           role: 'system',
