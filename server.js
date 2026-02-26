@@ -1,6 +1,7 @@
 // server.js - FINAL COMPLETE VERSION
 // All fixes: No greeting repeat + Modell info ONCE only + Split messages
 // v2 fixes: Cross-day conversation continuity + Smart context summary + Model upgrade
+// v3 fixes: Exclude "Neumodellage" from Modellkunde detection + No Setmore link for model customers
 
 const express = require('express');
 const { Pool } = require('pg');
@@ -58,9 +59,15 @@ SONNTAG: Geschlossen
 - "Samstag 17h" = AUSSERHALB
 - "Samstag 15h" = OK
 - IMMER prüfen ob Tag = Samstag → dann 16:00 statt 19:00
+
 🔗 TERMIN-ANFRAGE (SEHR WICHTIG!):
 
-Wenn Kunde fragt nach Termin (beliebige Form):
+⚠️ AUSNAHME - MODELLKUNDEN:
+Wenn Kunde ein MODELLKUNDE ist (hat schon die 3-teilige Modell-Info bekommen):
+→ KEIN Setmore Link geben
+→ NUR fragen: "Welcher Tag und welche Uhrzeit passen Ihnen, bitte?"
+
+Wenn Kunde ein NORMALER KUNDE ist (kein Modellkunde):
 - "Ich möchte einen Termin"
 - "Termin buchen"
 - "Kann ich buchen?"
@@ -73,10 +80,10 @@ Wenn Kunde fragt nach Termin (beliebige Form):
 Oder sagen Sie mir einfach Ihren Wunschtermin (Tag und Uhrzeit), dann helfe ich Ihnen gerne, bitte!"
 
 ⚠️ KRITISCH:
-- IMMER Link bei Termin-Anfrage geben
-- NICHT nur fragen: "Welcher Tag passt Ihnen?"
-- NICHT nur sagen: "Sagen Sie mir Tag und Uhrzeit"
-- ZUERST Link, DANN manuelle Option
+- NORMALE KUNDEN: IMMER Link geben
+- MODELLKUNDEN: NIEMALS Link geben, nur nach Tag/Uhrzeit fragen
+- NICHT nur fragen: "Welcher Tag passt Ihnen?" bei NORMALEN Kunden (Link vergessen!)
+- ZUERST Link, DANN manuelle Option (nur bei NORMALEN Kunden)
 
 ⏰ ÖFFNUNGSZEITEN:
 Montag - Freitag: 09:30 - 19:00 Uhr
@@ -152,7 +159,7 @@ User sagt nur Uhrzeit ohne Tag (z.B. "14h" ohne Tag davor):
 
 ⚠️ WICHTIGE REGELN:
 
-1. Bei Termin-Anfrage → IMMER Link geben
+1. Bei Termin-Anfrage → IMMER Link geben (NUR für NORMALE Kunden)
    ✗ FALSCH: "Welcher Tag passt Ihnen?"
    ✓ RICHTIG: "Gerne! Online: https://nailounge101.setmore.com/ Oder..."
 
@@ -323,10 +330,18 @@ Nachbesserung innerhalb von 3 Tagen inklusive!
 Ist das für Sie in Ordnung? 💅`;
 
 // Check if message contains Modellkunde keywords
+// FIX: Exclude "Neumodellage" which is a service name, not a model customer keyword
 function hasModellKeyword(text) {
   if (!text) return false;
-  const keywords = ['modell', 'model', 'azubi', 'übung', 'training', 'schulung', '15euro', '15 euro', '15 €', '15€'];
   const lower = text.toLowerCase();
+  
+  // Exclude service names that contain "modell" but are NOT Modellkunde
+  const excludePatterns = ['neumodellage', 'neumodelage', 'neuemodellage'];
+  if (excludePatterns.some(pattern => lower.includes(pattern))) {
+    return false;
+  }
+  
+  const keywords = ['modell', 'model', 'azubi', 'übung', 'training', 'schulung', '15euro', '15 euro', '15 €', '15€'];
   return keywords.some(k => lower.includes(k));
 }
 
