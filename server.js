@@ -103,6 +103,13 @@ Diese Formate bedeuten ALLE eine Uhrzeit:
 
 📋 BUCHUNGS-ABLAUF:
 
+⚠️ WICHTIG - VERGANGENE TERMINE:
+Wenn ein Termin in der KUNDENZUSAMMENFASSUNG oder Chat History erwähnt wird:
+1. Prüfe das AKTUELLE DATUM (siehe oben)
+2. Wenn der Termin VOR dem heutigen Datum liegt → Termin ist VORBEI
+3. Frage: "Ihr Termin am [Datum] ist bereits vorbei. Möchten Sie einen neuen Termin vereinbaren?"
+4. NIEMALS einen vergangenen Termin als "weiterhin notiert" bestätigen
+
 SCHRITT 1 - Termin-Anfrage:
 User: "Ich möchte einen Termin" / "Termin buchen" / "ja"
 → "Gerne! Sie können online buchen: https://nailounge101.setmore.com/
@@ -341,7 +348,7 @@ function hasModellKeyword(text) {
     return false;
   }
   
-  const keywords = ['modell', 'model', 'azubi', 'übung', 'training', 'schulung', '15euro', '15 euro', '15 €', '15€'];
+  const keywords = ['modell', 'model', 'azubi', 'auzubi', 'übung', 'training', 'schulung', '15euro', '15 euro', '15 €', '15€'];
   return keywords.some(k => lower.includes(k));
 }
 
