@@ -1,7 +1,5 @@
 // server.js - FINAL COMPLETE VERSION
-// All fixes: No greeting repeat + Modell info ONCE only + Split messages
-// v2 fixes: Cross-day conversation continuity + Smart context summary + Model upgrade
-// v3 fixes: Exclude "Neumodellage" from Modellkunde detection + No Setmore link for model customers
+// v4: New Modellkunde message + Staff takeover (24h pause)
 
 const express = require('express');
 const { Pool } = require('pg');
@@ -11,7 +9,6 @@ require('dotenv').config();
 const app = express();
 app.use(express.json());
 
-// Database connection
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
@@ -24,12 +21,10 @@ pool.on('error', (err) => {
   console.error('❌ Unexpected database error:', err);
 });
 
-// OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-// System prompt
 const SYSTEM_PROMPT = `Du bist der KI-Assistent von Nailounge101 Berlin (Reichsstraße 101, 14052 Berlin).
 
 🔴🔴🔴 KRITISCHE REGEL - NIEMALS WIEDERHOLEN 🔴🔴🔴
@@ -47,6 +42,10 @@ WENN du [assistant] Nachrichten in der History siehst:
 WENN Chat History LEER ist:
 → NUR DANN: "Guten Tag! Willkommen bei Nailounge101 Berlin. Wie kann ich helfen, bitte?"
 
+MODELLKUNDEN - TERMIN BUCHEN:
+Wenn MODELLKUNDE "ja" oder "in Ordnung" oder "ok" antwortet (= akzeptiert die Bedingungen):
+→ "Perfekt! Bitte buchen Sie hier Ihren Termin: https://nailounge101.setmore.com/book?step=time-slot&products=d8f1cdd3-ca6f-42b7-8f2a-fbbb64cbcd2d&type=service&staff=jeeZoVSakEm9KfPuHaC7ZwfaPN9CKI1R&staffSelected=true"
+
 BUCHUNG (NORMALE KUNDEN):
 🔴🔴🔴 KRITISCH - ÖFFNUNGSZEITEN 🔴🔴🔴
 
@@ -63,9 +62,9 @@ SONNTAG: Geschlossen
 🔗 TERMIN-ANFRAGE (SEHR WICHTIG!):
 
 ⚠️ AUSNAHME - MODELLKUNDEN:
-Wenn Kunde ein MODELLKUNDE ist (hat schon die 3-teilige Modell-Info bekommen):
-→ KEIN Setmore Link geben
-→ NUR fragen: "Welcher Tag und welche Uhrzeit passen Ihnen, bitte?"
+Wenn Kunde ein MODELLKUNDE ist (hat schon die Modell-Info bekommen):
+→ KEIN normales Setmore Link geben
+→ Nur nach Akzeptanz den speziellen Modellkunden-Link geben (siehe oben)
 
 Wenn Kunde ein NORMALER KUNDE ist (kein Modellkunde):
 - "Ich möchte einen Termin"
@@ -81,7 +80,7 @@ Oder sagen Sie mir einfach Ihren Wunschtermin (Tag und Uhrzeit), dann helfe ich 
 
 ⚠️ KRITISCH:
 - NORMALE KUNDEN: IMMER Link geben
-- MODELLKUNDEN: NIEMALS Link geben, nur nach Tag/Uhrzeit fragen
+- MODELLKUNDEN: Nur speziellen Link nach Akzeptanz
 - NICHT nur fragen: "Welcher Tag passt Ihnen?" bei NORMALEN Kunden (Link vergessen!)
 - ZUERST Link, DANN manuelle Option (nur bei NORMALEN Kunden)
 
@@ -191,140 +190,6 @@ User sagt nur Uhrzeit ohne Tag (z.B. "14h" ohne Tag davor):
    ✗ FALSCH: "Termin ist gebucht"
    ✓ RICHTIG: "Mitarbeiter prüfen"
 
-📝 BEISPIELE:
-
-User: "Ich möchte einen Termin"
-✓ "Gerne! Sie können online buchen: https://nailounge101.setmore.com/
-   Oder sagen Sie mir Ihren Wunschtermin..."
-✗ FALSCH: "Welcher Tag passt Ihnen?" (OHNE Link!)
-
-User: "ja" (nach "Möchten Sie Termin?")
-✓ "Gerne! Online: https://nailounge101.setmore.com/ Oder sagen Sie..."
-✗ FALSCH: "Sagen Sie mir Tag und Uhrzeit" (OHNE Link!)
-
-User: "Termin buchen"
-✓ "Gerne! https://nailounge101.setmore.com/ Oder sagen Sie..."
-
-User: "Montag"
-✓ "Perfekt! Welche Uhrzeit am Montag?"
-
-User: "4h"
-✓ "Perfekt! Mitarbeiter prüfen die Verfügbarkeit. Vielen Dank!"
-✗ FALSCH: "Welche Uhrzeit?"
-
-User: "14h"
-✓ "Perfekt! Mitarbeiter prüfen..."
-
-User: "3h"
-✓ "Entschuldigung, wir sind Mo-Fr 09:30-19:00. Welche Uhrzeit..."
-(03:00 ist außerhalb)
-
-User: "9:30"
-✓ "Perfekt! Mitarbeiter prüfen..."
-
-User: "Samstag 14h"
-✓ "Perfekt! Mitarbeiter prüfen..."
-
-User: "Samstag 17h"
-✓ "Entschuldigung, Sa 09:30-16:00. Welche Uhrzeit..."
-
-User: "Sonntag 14h"
-✓ "Entschuldigung, Sonntag geschlossen. Mo-Sa Termin?"
-User: "Samstag 10h"
-✓ "Perfekt! Mitarbeiter prüfen die Verfügbarkeit. Vielen Dank!"
-
-User: "Samstag 14h"  
-✓ "Perfekt! Mitarbeiter prüfen..."
-
-User: "Samstag 17h"
-✓ "Entschuldigung, wir sind am Samstag von 09:30 bis 16:00 Uhr geöffnet. Welche Uhrzeit zwischen 09:30 und 16:00 Uhr passt Ihnen, bitte?"
-
-User: "Sa 8h"
-✓ "Entschuldigung, Sa 09:30-16:00. Welche Uhrzeit..."
-
-User: "Sa 15h"
-✓ "Perfekt! Mitarbeiter prüfen..."
-
-📝 BEISPIELE MIT SAMSTAG (SEHR WICHTIG!):
-
-User: "Samstag"
-✓ "Perfekt! Welche Uhrzeit am Samstag passt Ihnen, bitte?"
-
-User: "Samstag 10h"
-✓ "Perfekt! Bitte warten Sie kurz, unsere Mitarbeiter prüfen die Verfügbarkeit. Vielen Dank!"
-
-User: "Samstag 14h"
-✓ "Perfekt! Mitarbeiter prüfen die Verfügbarkeit. Vielen Dank!"
-
-User: "Samstag 15h"
-✓ "Perfekt! Mitarbeiter prüfen..."
-
-User: "Samstag 15:30"
-✓ "Perfekt! Mitarbeiter prüfen..."
-
-User: "Samstag 16h"
-✓ "Entschuldigung, wir sind am Samstag von 09:30 bis 16:00 Uhr geöffnet. Welche Uhrzeit zwischen 09:30 und 16:00 Uhr passt Ihnen, bitte?"
-
-User: "Samstag 17h"
-✓ "Entschuldigung, wir sind am Samstag von 09:30 bis 16:00 Uhr geöffnet. Welche Uhrzeit..."
-
-User: "Sa 8h"
-✓ "Entschuldigung, Sa 09:30-16:00. Welche Uhrzeit..."
-
-User: "Sa 12h"
-✓ "Perfekt! Mitarbeiter prüfen..."
-
-
-📝 BEISPIELE MIT 18H (MONTAG-FREITAG):
-
-User: "18h"
-✓ "Perfekt! Bitte warten Sie kurz, unsere Mitarbeiter prüfen die Verfügbarkeit. Vielen Dank!"
-✗ FALSCH: "Wir sind 09:30-19:00..." (18h ist VOR 19:00!)
-
-User: "Montag 18h"
-✓ "Perfekt! Mitarbeiter prüfen..."
-
-User: "18:30"
-✓ "Perfekt! Mitarbeiter prüfen..."
-
-User: "18:45"
-✓ "Perfekt! Mitarbeiter prüfen..."
-
-User: "19h"
-✓ "Entschuldigung, wir sind Mo-Fr von 09:30 bis 19:00 Uhr geöffnet..."
-
-📝 BEISPIELE MIT VERGANGENEN DATEN (SEHR WICHTIG!):
-
-Aktuelles Datum: 26.02.2026
-
-User: "25/2/2026 17h" oder "25.2 um 17h"
-✓ "Entschuldigung, der 25. Februar ist bereits vorbei. Welches Datum ab heute passt Ihnen, bitte?"
-✗ FALSCH: "Am 25.2.2026 um 17h liegt außerhalb..." (Datum-Check vergessen!)
-
-User: "gestern 14h"
-✓ "Entschuldigung, gestern ist bereits vorbei. Welches Datum ab heute passt Ihnen, bitte?"
-
-User: "18/2 10h" (18.2 ist vor 26.2)
-✓ "Entschuldigung, der 18. Februar ist bereits vorbei. Welches Datum ab heute passt Ihnen, bitte?"
-
-User: "27/2 14h" (27.2 ist nach 26.2)
-✓ "Perfekt! Mitarbeiter prüfen die Verfügbarkeit. Vielen Dank!"
-
-❌ HÄUFIGE FEHLER:
-
-User: "Ich möchte einen Termin"
-✗ FALSCH: "Welcher Tag passt Ihnen?" (Link vergessen!)
-✗ FALSCH: "Bitte sagen Sie Tag und Uhrzeit" (Link vergessen!)
-✓ RICHTIG: "Gerne! https://nailounge101.setmore.com/ Oder..."
-
-User: "ja" nach Preis
-✗ FALSCH: "Sagen Sie mir Wunschtermin" (Link vergessen!)
-✓ RICHTIG: "Gerne! https://nailounge101.setmore.com/ Oder..."
-
-User: "4h" nach Tag
-✗ FALSCH: "Welche Uhrzeit passt Ihnen?"
-✓ RICHTIG: "Perfekt! Mitarbeiter prüfen..."
-
 GRUNDREGELN:
 - Antworte auf Hochdeutsch, warm, professionell
 - Maximal 2-3 Sätze
@@ -342,32 +207,24 @@ WICHTIG:
 - Beziehe dich auf Chat History
 - Keine Wiederholungen`;
 
-// Modell text - split into 3 parts
-const MODELL_PART_1 = `Guten Tag! Wir freuen uns sehr, dass Sie sich für unsere Dienstleistungen interessieren.
-
-Momentan nehmen wir noch Kunden für unsere Schüler an.`;
-
-const MODELL_PART_2 = `Der Preis für die Nägel hängt vom Design ab:
-- Natur klar: 15 Euro
-- Natur Make-up, French, Farbe, Glitzer, Ombre oder Katzenaugen: 20 Euro  
-- Aufwendige Designs: +1 Euro pro Design-Nagel
-- Steinchen: 0,50 Euro pro Stück
-
-Unsere Schüler können sehr komplizierte Muster möglicherweise nicht umsetzen.`;
-
-const MODELL_PART_3 = `Die Behandlungszeit beträgt etwa 2-3 Stunden, und das Ergebnis kann möglicherweise nicht perfekt sein — wir möchten Sie im Voraus darüber informieren.
-
-Nachbesserung innerhalb von 3 Tagen inklusive!
-
+const MODELL_MESSAGE = `Guten Tag!
+Wir freuen uns sehr, dass Sie sich für unsere Dienstleistungen interessieren.
+Momentan nehmen wir noch Kunden für unsere Schüler an.
+Der Preis für die Nägel hängt vom Design ab:
+Wenn Sie Natur klar wünschen, beträgt der Preis 15 €.
+Wenn Sie Natur Make-up, French, Farbe, Glitzer, Ombre oder Katzenaugen möchten, kostet es 20 €.
+Für aufwendigere Designs berechnen wir zusätzlich 1 € pro Design-Nagel,
+und jede Steinchen kostet 0,50 €.
+Unsere Schüler können jedoch möglicherweise sehr komplizierte Muster nicht umsetzen.
+Die Behandlungszeit beträgt in der Regel etwa 2 bis 3 Stunden,
+und das Ergebnis kann möglicherweise nicht perfekt sein — wir möchten Sie im Voraus darüber informieren, damit Sie Bescheid wissen.
+Außerdem bieten wir eine Nachbesserung innerhalb von 3 Tagen an.
 Ist das für Sie in Ordnung? 💅`;
 
-// Check if message contains Modellkunde keywords
-// FIX: Exclude "Neumodellage" which is a service name, not a model customer keyword
 function hasModellKeyword(text) {
   if (!text) return false;
   const lower = text.toLowerCase();
   
-  // Exclude service names that contain "modell" but are NOT Modellkunde
   const excludePatterns = ['neumodellage', 'neumodelage', 'neuemodellage'];
   if (excludePatterns.some(pattern => lower.includes(pattern))) {
     return false;
@@ -377,9 +234,7 @@ function hasModellKeyword(text) {
   return keywords.some(k => lower.includes(k));
 }
 
-// Check if should send Modell info (ONLY ONCE per conversation)
 function isModellkundeConversation(userMessage, history) {
-  // Step 1: Check if current message has Modell keyword
   const hasKeyword = hasModellKeyword(userMessage);
   
   if (!hasKeyword) {
@@ -389,7 +244,6 @@ function isModellkundeConversation(userMessage, history) {
   
   console.log('✓ Modell keyword found in current message');
   
-  // Step 2: Check if we ALREADY sent Modell info in this conversation
   if (history && history.length > 0) {
     const alreadySentModellInfo = history.some(msg => 
       msg.role === 'assistant' && 
@@ -406,7 +260,38 @@ function isModellkundeConversation(userMessage, history) {
   return true;
 }
 
-// Initialize database
+async function isStaffTakeover(contactId) {
+  const query = `
+    SELECT role, message, timestamp
+    FROM chat_history
+    WHERE contact_id = $1 AND role = 'staff'
+    ORDER BY timestamp DESC
+    LIMIT 1
+  `;
+  
+  try {
+    const result = await pool.query(query, [contactId]);
+    if (result.rows.length === 0) {
+      return false;
+    }
+    
+    const lastStaffMessage = result.rows[0];
+    const staffTimestamp = new Date(lastStaffMessage.timestamp);
+    const now = new Date();
+    const hoursSinceStaffReply = (now - staffTimestamp) / (1000 * 60 * 60);
+    
+    if (hoursSinceStaffReply < 24) {
+      console.log(`⚠️ Staff takeover active - ${hoursSinceStaffReply.toFixed(1)}h since staff reply`);
+      return true;
+    }
+    
+    console.log(`✓ Staff takeover expired - ${hoursSinceStaffReply.toFixed(1)}h since staff reply`);
+    return false;
+  } catch (error) {
+    console.error('❌ Check staff takeover error:', error);
+    return false;
+  }
+}
 async function initDB() {
   const createTableQuery = `
     CREATE TABLE IF NOT EXISTS chat_history (
@@ -419,7 +304,6 @@ async function initDB() {
     )
   `;
 
-  // NEW: Table to store conversation summary per customer (cross-day memory)
   const createSummaryTableQuery = `
     CREATE TABLE IF NOT EXISTS conversation_summary (
       id SERIAL PRIMARY KEY,
@@ -439,7 +323,6 @@ async function initDB() {
   }
 }
 
-// Get chat history - increased LIMIT from 20 to 50 for cross-day continuity
 async function getChatHistory(contactId) {
   const query = `
     SELECT role, message, timestamp
@@ -458,7 +341,6 @@ async function getChatHistory(contactId) {
   }
 }
 
-// NEW: Get stored summary for a customer (cross-day memory)
 async function getConversationSummary(contactId) {
   const query = `
     SELECT summary, last_updated
@@ -477,20 +359,15 @@ async function getConversationSummary(contactId) {
   }
 }
 
-// NEW: Save or update conversation summary using AI
-// After each conversation, AI summarizes key info so bot remembers across days
 async function updateConversationSummary(contactId, userName, history) {
-  // Only summarize if there are enough messages
   if (!history || history.length < 4) return;
 
   try {
-    // Get existing summary to build on it
     const existing = await getConversationSummary(contactId);
     const existingSummaryText = existing
       ? `Bisherige Zusammenfassung (von früher): ${existing.summary}\n\n`
       : '';
 
-    // Only use last 20 messages for summarization to save tokens
     const recentHistory = history.slice(-20);
     const historyText = recentHistory
       .map(msg => `[${msg.role}]: ${msg.message.replace(/\n/g, ' ')}`)
@@ -522,7 +399,6 @@ Maximal 5 Sätze. Nur die wichtigsten Infos.`
 
     const newSummary = summaryCompletion.choices[0].message.content;
 
-    // Upsert: insert new or update existing summary
     const upsertQuery = `
       INSERT INTO conversation_summary (contact_id, user_name, summary, last_updated)
       VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
@@ -533,11 +409,9 @@ Maximal 5 Sätze. Nur die wichtigsten Infos.`
     console.log(`✅ Summary updated for ${contactId}`);
   } catch (error) {
     console.error('❌ Update summary error:', error.message);
-    // Non-critical: bot continues working even if summary update fails
   }
 }
 
-// Save message
 async function saveMessage(contactId, userName, role, message) {
   const query = `
     INSERT INTO chat_history (contact_id, user_name, role, message)
@@ -552,7 +426,6 @@ async function saveMessage(contactId, userName, role, message) {
   }
 }
 
-// Format history
 function formatHistory(history) {
   if (!history || history.length === 0) {
     return "No previous conversation.";
@@ -566,7 +439,6 @@ function formatHistory(history) {
     .join('\n');
 }
 
-// Main chat endpoint
 app.post('/chat', async (req, res) => {
   try {
     const { contact_id, user_name, user_message } = req.body;
@@ -579,13 +451,22 @@ app.post('/chat', async (req, res) => {
     
     console.log(`📩 New message from ${user_name} (${contact_id}): ${user_message}`);
     
-    // 1. Get chat history
+    const staffTakeover = await isStaffTakeover(contact_id);
+    if (staffTakeover) {
+      console.log('⚠️ Staff takeover active - bot paused for this contact');
+      await saveMessage(contact_id, user_name, 'user', user_message);
+      return res.json({
+        bot_response: "",
+        bot_response_2: "EMPTY_RESPONSE",
+        bot_response_3: "EMPTY_RESPONSE"
+      });
+    }
+    
     const history = await getChatHistory(contact_id);
     const historyText = formatHistory(history);
     
     console.log(`📚 Found ${history.length} previous messages`);
 
-    // NEW: Get long-term summary for this customer (cross-day memory)
     const existingSummary = await getConversationSummary(contact_id);
     let summaryContext = '';
     if (existingSummary) {
@@ -594,14 +475,11 @@ app.post('/chat', async (req, res) => {
       console.log(`📋 Found existing summary for ${contact_id}`);
     }
     
-    // 2. Check if bot already greeted
-    // Search full history (50 msgs) to avoid re-greeting across days
     const hasGreeted = history.some(msg => 
       msg.role === 'assistant' && 
       (msg.message.includes('Guten Tag') || msg.message.includes('Willkommen'))
     );
 
-    // Also treat returning customer (has summary) as already greeted
     const isReturningCustomer = existingSummary !== null;
     const shouldSkipGreeting = hasGreeted || isReturningCustomer;
     
@@ -609,8 +487,6 @@ app.post('/chat', async (req, res) => {
       console.log(`✓ Skip greeting - hasGreeted: ${hasGreeted}, isReturning: ${isReturningCustomer}`);
     }
     
-    // 3. Build user message with strong anti-repeat instruction
-    // Inject current date/time so bot can correctly resolve "today", "tomorrow", etc.
     const now = new Date();
     const berlinTime = now.toLocaleString('de-DE', {
       timeZone: 'Europe/Berlin',
@@ -650,12 +526,10 @@ CURRENT MESSAGE: ${user_message}
 
 This is a ${history.length === 0 ? 'NEW' : 'CONTINUING'} conversation. Reply appropriately.`;
 
-    // DEBUG: Check keyword detection
     console.log(`🔍 DEBUG - User message: "${user_message}"`);
     console.log(`🔍 DEBUG - hasModellKeyword: ${hasModellKeyword(user_message)}`);
     console.log(`🔍 DEBUG - History length: ${history.length}`);
     
-    // 4. Call OpenAI - upgraded to gpt-4.1 (better instruction following, cheaper than gpt-4o)
     const completion = await openai.chat.completions.create({
       model: 'gpt-4.1-2025-04-14',
       messages: [
@@ -672,56 +546,42 @@ This is a ${history.length === 0 ? 'NEW' : 'CONTINUING'} conversation. Reply app
       temperature: 0.7
     });
     
-    // 5. Get AI response
     let aiResponse = completion.choices[0].message.content;
     console.log(`🤖 AI response (original): ${aiResponse.substring(0, 100)}...`);
     
-    // DEBUG: Check AI response content
     console.log(`🔍 DEBUG - AI includes "Wir freuen uns": ${aiResponse.includes('Wir freuen uns sehr')}`);
     console.log(`🔍 DEBUG - AI response length: ${aiResponse.length}`);
     
-    // 6. Check if should send Modell info (ONLY ONCE)
     const shouldSendModellInfo = isModellkundeConversation(user_message, history);
 
-    // DEBUG: Final decision
     console.log(`🔍 DEBUG - shouldSendModellInfo: ${shouldSendModellInfo}`);
     
     if (shouldSendModellInfo) {
       console.log('🔍 Sending Modell info');
       
-      // Check if bot already greeted
       const alreadyGreeted = history.some(msg => 
         msg.role === 'assistant'
       );
       
-      // Dynamic Part 1 - with or without greeting
-      const modellPart1 = alreadyGreeted
-        ? `Wir freuen uns sehr, dass Sie sich für unsere Dienstleistungen interessieren.
-
-Momentan nehmen wir noch Kunden für unsere Schüler an.`
-        : `Guten Tag! Wir freuen uns sehr, dass Sie sich für unsere Dienstleistungen interessieren.
-
-Momentan nehmen wir noch Kunden für unsere Schüler an.`;
+      const modellMessage = alreadyGreeted
+        ? MODELL_MESSAGE.replace('Guten Tag!\n', '')
+        : MODELL_MESSAGE;
       
-      console.log(`📝 Modell Part 1 ${alreadyGreeted ? 'WITHOUT' : 'WITH'} greeting`);
+      console.log(`📝 Modell message ${alreadyGreeted ? 'WITHOUT' : 'WITH'} greeting`);
       
-      // Send 3-part Modell text
       res.json({
-        bot_response: modellPart1,
-        bot_response_2: MODELL_PART_2,
-        bot_response_3: MODELL_PART_3
+        bot_response: modellMessage,
+        bot_response_2: "EMPTY_RESPONSE",
+        bot_response_3: "EMPTY_RESPONSE"
       });
           
-      // Save messages
-      const fullModellText = MODELL_PART_1 + '\n\n' + MODELL_PART_2 + '\n\n' + MODELL_PART_3;
-      saveMessage(contact_id, user_name, 'user', user_message).catch(err => {
+      await saveMessage(contact_id, user_name, 'user', user_message).catch(err => {
         console.error('Failed to save user message:', err.message);
       });
-      saveMessage(contact_id, user_name, 'assistant', fullModellText).catch(err => {
+      await saveMessage(contact_id, user_name, 'assistant', modellMessage).catch(err => {
         console.error('Failed to save assistant message:', err.message);
       });
 
-      // Update summary async (non-blocking)
       getChatHistory(contact_id).then(updatedHistory => {
         updateConversationSummary(contact_id, user_name, updatedHistory).catch(err => {
           console.error('Failed to update summary:', err.message);
@@ -733,23 +593,20 @@ Momentan nehmen wir noch Kunden für unsere Schüler an.`;
     
     console.log(`🤖 AI response (final): ${aiResponse.substring(0, 100)}... (length: ${aiResponse.length})`);
     
-    // 7. Send normal response
     res.json({
       bot_response: aiResponse,
-      bot_response_2: "EMPTY_RESPONSE",  // ← Placeholder
-      bot_response_3: "EMPTY_RESPONSE"   // ← Placeholder
+      bot_response_2: "EMPTY_RESPONSE",
+      bot_response_3: "EMPTY_RESPONSE"
     });
     
-    // 8. Save messages async
-    saveMessage(contact_id, user_name, 'user', user_message).catch(err => {
+    await saveMessage(contact_id, user_name, 'user', user_message).catch(err => {
       console.error('Failed to save user message:', err.message);
     });
     
-    saveMessage(contact_id, user_name, 'assistant', aiResponse).catch(err => {
+    await saveMessage(contact_id, user_name, 'assistant', aiResponse).catch(err => {
       console.error('Failed to save assistant message:', err.message);
     });
 
-    // Update summary async (non-blocking, runs in background)
     getChatHistory(contact_id).then(updatedHistory => {
       updateConversationSummary(contact_id, user_name, updatedHistory).catch(err => {
         console.error('Failed to update summary:', err.message);
@@ -763,18 +620,40 @@ Momentan nehmen wir noch Kunden für unsere Schüler an.`;
       success: false,
       error: 'Internal server error',
       bot_response: 'Entschuldigung, es gab einen technischen Fehler. Bitte versuchen Sie es erneut.',
-      bot_response_2: "EMPTY_RESPONSE",  // ← Placeholder
-      bot_response_3: "EMPTY_RESPONSE"   // ← Placeholder
+      bot_response_2: "EMPTY_RESPONSE",
+      bot_response_3: "EMPTY_RESPONSE"
     });
   }
 });
+app.post('/staff-reply', async (req, res) => {
+  try {
+    const { contact_id, user_name, staff_message } = req.body;
+    
+    if (!contact_id || !staff_message) {
+      return res.status(400).json({ 
+        error: 'Missing contact_id or staff_message' 
+      });
+    }
+    
+    console.log(`👤 Staff reply for ${contact_id}: ${staff_message.substring(0, 50)}...`);
+    
+    await saveMessage(contact_id, user_name, 'staff', staff_message);
+    
+    res.json({ 
+      success: true, 
+      message: 'Staff reply saved, bot paused for 24h' 
+    });
+    
+  } catch (error) {
+    console.error('❌ Staff reply error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
-// Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Test endpoint
 app.get('/history/:contactId', async (req, res) => {
   try {
     const history = await getChatHistory(req.params.contactId);
@@ -784,7 +663,6 @@ app.get('/history/:contactId', async (req, res) => {
   }
 });
 
-// NEW: Debug endpoint - view customer summary
 app.get('/summary/:contactId', async (req, res) => {
   try {
     const summary = await getConversationSummary(req.params.contactId);
@@ -794,7 +672,6 @@ app.get('/summary/:contactId', async (req, res) => {
   }
 });
 
-// Start server
 const PORT = process.env.PORT || 3000;
 
 initDB().then(() => {
