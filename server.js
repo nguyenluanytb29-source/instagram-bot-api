@@ -310,28 +310,31 @@ async function detectLanguageWithAI(userMessage, conversationHistory) {
       if (['xin chào', 'chào'].some(g => lower.includes(g))) return 'vi';
     }
     
-    // Build conversation context for AI
-    const recentMessages = conversationHistory.slice(-5)
-      .map(msg => `${msg.role}: ${msg.message}`)
+    // Build conversation context ONLY from USER messages (not bot responses)
+    const recentUserMessages = conversationHistory
+      .filter(msg => msg.role === 'user')  // ONLY user messages
+      .slice(-5)
+      .map(msg => msg.message)
       .join('\n');
     
-    const context = recentMessages 
-      ? `Recent conversation:\n${recentMessages}\n\nCurrent message: ${userMessage}`
-      : `Current message: ${userMessage}`;
+    const context = recentUserMessages 
+      ? `Previous customer messages:\n${recentUserMessages}\n\nCurrent customer message: ${userMessage}`
+      : `Current customer message: ${userMessage}`;
     
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
-          content: `You are a language detector. Analyze the conversation and determine what language the customer is using.
+          content: `You are a language detector. Analyze ONLY the customer's messages to determine what language they are using.
 
-Rules:
-1. Look at the ENTIRE conversation context, not just the current message
-2. If conversation has been in Vietnamese, and customer says "ok 14h" → Language is VIETNAMESE
-3. If conversation has been in English, and customer says "ja 14h" → Language is ENGLISH
-4. Consider the dominant language of the conversation
-5. Short messages like "ok", "yes", "ja" should use the conversation's language
+CRITICAL RULES:
+1. Look ONLY at the customer's messages, IGNORE bot responses
+2. Determine the language the CUSTOMER has been consistently using
+3. If customer wrote "I want appointment Sunday 5pm" → ENGLISH
+4. If customer then writes "ja ok Saturday 2pm" → Still ENGLISH (customer's language)
+5. "ja" is just a filler word, the sentence structure is English
+6. Focus on the dominant language in the customer's message history
 
 Respond with ONLY ONE WORD:
 - "vietnamese" if the customer is using Vietnamese
@@ -351,6 +354,7 @@ DO NOT include any explanation. Just the language name.`
     
     const detected = completion.choices[0].message.content.trim().toLowerCase();
     console.log(`🤖 AI language detection: ${detected}`);
+    console.log(`📝 Context analyzed: ${context.substring(0, 200)}...`);
     
     if (detected.includes('vietnamese') || detected.includes('vi')) return 'vi';
     if (detected.includes('english') || detected.includes('en')) return 'en';
