@@ -300,6 +300,70 @@ Antworte NUR mit: MODELLKUNDE oder NORMAL`
   }
 }
 
+async function detectLanguageWithAI(userMessage, conversationHistory) {
+  try {
+    // For very first message with clear patterns, use fast detection
+    const lower = userMessage.toLowerCase().trim();
+    if (conversationHistory.length === 0) {
+      if (['hello', 'hi', 'hey'].some(g => lower === g || lower.startsWith(g + ' '))) return 'en';
+      if (['guten tag', 'hallo'].some(g => lower.includes(g))) return 'de';
+      if (['xin chào', 'chào'].some(g => lower.includes(g))) return 'vi';
+    }
+    
+    // Build conversation context for AI
+    const recentMessages = conversationHistory.slice(-5)
+      .map(msg => `${msg.role}: ${msg.message}`)
+      .join('\n');
+    
+    const context = recentMessages 
+      ? `Recent conversation:\n${recentMessages}\n\nCurrent message: ${userMessage}`
+      : `Current message: ${userMessage}`;
+    
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a language detector. Analyze the conversation and determine what language the customer is using.
+
+Rules:
+1. Look at the ENTIRE conversation context, not just the current message
+2. If conversation has been in Vietnamese, and customer says "ok 14h" → Language is VIETNAMESE
+3. If conversation has been in English, and customer says "ja 14h" → Language is ENGLISH
+4. Consider the dominant language of the conversation
+5. Short messages like "ok", "yes", "ja" should use the conversation's language
+
+Respond with ONLY ONE WORD:
+- "vietnamese" if the customer is using Vietnamese
+- "english" if the customer is using English  
+- "german" if the customer is using German
+
+DO NOT include any explanation. Just the language name.`
+        },
+        {
+          role: 'user',
+          content: context
+        }
+      ],
+      temperature: 0,
+      max_tokens: 10
+    });
+    
+    const detected = completion.choices[0].message.content.trim().toLowerCase();
+    console.log(`🤖 AI language detection: ${detected}`);
+    
+    if (detected.includes('vietnamese') || detected.includes('vi')) return 'vi';
+    if (detected.includes('english') || detected.includes('en')) return 'en';
+    if (detected.includes('german') || detected.includes('de')) return 'de';
+    
+    // Fallback to keyword detection
+    return detectLanguage(userMessage);
+  } catch (error) {
+    console.error('❌ AI language detection error:', error);
+    return detectLanguage(userMessage);
+  }
+}
+
 function detectLanguage(text) {
   const lower = text.toLowerCase().trim();
   
@@ -617,8 +681,9 @@ app.post('/chat', async (req, res) => {
     });
     const dateContext = `🕐 AKTUELLES DATUM & UHRZEIT (Berlin): ${berlinTime}\n`;
     
-    const userLang = detectLanguage(user_message);
-    console.log(`🌍 Detected language: ${userLang}`);
+    // Use AI to detect language based on entire conversation context
+    const userLang = await detectLanguageWithAI(user_message, history);
+    console.log(`🌍 AI-detected language: ${userLang} (message: "${user_message}")`);
 
     const languageMap = {
       'vi': 'VIETNAMESE (Tiếng Việt)',
@@ -639,13 +704,19 @@ CURRENT MESSAGE: ${user_message}
 ---
 
 🔴🔴🔴 CRITICAL LANGUAGE INSTRUCTION 🔴🔴🔴
-THE CUSTOMER IS WRITING IN: ${detectedLangName}
-YOU MUST RESPOND IN: ${detectedLangName}
+THE CUSTOMER HAS BEEN WRITING IN: ${detectedLangName}
+YOU MUST CONTINUE RESPONDING IN: ${detectedLangName}
+
+⚠️ IMPORTANT RULE:
+- If the conversation history shows the customer has been using Vietnamese → KEEP using Vietnamese
+- If the conversation history shows the customer has been using English → KEEP using English
+- If the conversation history shows the customer has been using German → KEEP using German
+- DO NOT switch languages mid-conversation!
 
 Examples:
-- Customer: "chủ nhật 17h" → Respond in VIETNAMESE
-- Customer: "Sunday 5pm" → Respond in ENGLISH
-- Customer: "Sonntag 17h" → Respond in GERMAN
+- History shows Vietnamese → Customer says "ok vậy 14h" → Respond in VIETNAMESE (not English!)
+- History shows English → Customer says "ok dann 14h" → Respond in ENGLISH (not German!)
+- History shows German → Customer says "ok 14h" → Respond in GERMAN (not English!)
 
 ⚠️ IMPORTANT: You have ALREADY greeted this customer before (see history or summary above).
 DO NOT greet again.
