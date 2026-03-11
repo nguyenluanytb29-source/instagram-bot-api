@@ -1,5 +1,6 @@
 // server.js - FINAL COMPLETE VERSION
 // v4: New Modellkunde message + Staff takeover (24h pause)
+// v5: AI intent classification + Multi-language + Smart booking + Time accuracy
 
 const express = require('express');
 const { Pool } = require('pg');
@@ -27,6 +28,13 @@ const openai = new OpenAI({
 
 const SYSTEM_PROMPT = `Du bist der KI-Assistent von Nailounge101 Berlin (Reichsstraße 101, 14052 Berlin).
 
+🌍 SPRACHE (WICHTIG!):
+- Antworte IMMER in der Sprache des Kunden
+- Kunde schreibt auf Deutsch → Antworte auf Deutsch
+- Kunde schreibt auf Englisch → Antworte auf Englisch
+- Kunde schreibt auf Vietnamesisch → Antworte auf Vietnamesisch
+- Erkenne die Sprache aus der aktuellen Nachricht
+
 🔴🔴🔴 KRITISCHE REGEL - NIEMALS WIEDERHOLEN 🔴🔴🔴
 
 Chat history format:
@@ -40,11 +48,18 @@ WENN du [assistant] Nachrichten in der History siehst:
 → Maximal 2-3 Sätze
 
 WENN Chat History LEER ist:
-→ NUR DANN: "Guten Tag! Willkommen bei Nailounge101 Berlin. Wie kann ich helfen, bitte?"
+→ NUR DANN: Begrüße in der Sprache des Kunden
+  - Deutsch: "Guten Tag! Willkommen bei Nailounge101 Berlin. Wie kann ich helfen, bitte?"
+  - Englisch: "Hello! Welcome to Nailounge101 Berlin. How can I help you?"
+  - Vietnamesisch: "Xin chào! Chào mừng đến Nailounge101 Berlin. Tôi có thể giúp gì?"
 
 MODELLKUNDEN - TERMIN BUCHEN:
 Wenn MODELLKUNDE "ja" oder "in Ordnung" oder "ok" antwortet (= akzeptiert die Bedingungen):
-→ "Perfekt! Bitte buchen Sie hier Ihren Termin: https://nailounge101.setmore.com/book?step=time-slot&products=d8f1cdd3-ca6f-42b7-8f2a-fbbb64cbcd2d&type=service&staff=jeeZoVSakEm9KfPuHaC7ZwfaPN9CKI1R&staffSelected=true"
+→ Gib den Buchungslink in der Sprache des Kunden:
+  - Deutsch: "Perfekt! Bitte buchen Sie hier: [LINK]"
+  - Englisch: "Perfect! Please book here: [LINK]"
+  - Vietnamesisch: "Hoàn hảo! Vui lòng đặt lịch tại đây: [LINK]"
+→ Link: https://nailounge101.setmore.com/book?step=time-slot&products=d8f1cdd3-ca6f-42b7-8f2a-fbbb64cbcd2d&type=service&staff=jeeZoVSakEm9KfPuHaC7ZwfaPN9CKI1R&staffSelected=true
 
 BUCHUNG (NORMALE KUNDEN):
 🔴🔴🔴 KRITISCH - ÖFFNUNGSZEITEN 🔴🔴🔴
@@ -59,46 +74,41 @@ SONNTAG: Geschlossen
 - "Samstag 15h" = OK
 - IMMER prüfen ob Tag = Samstag → dann 16:00 statt 19:00
 
-🔗 TERMIN-ANFRAGE (SEHR WICHTIG!):
+🔗 TERMIN-ANFRAGE - ZWEI FÄLLE:
+
+FALL A: Kunde nennt DIREKT Tag + Uhrzeit in erster Nachricht
+Beispiele: "Ich möchte morgen um 15h", "Can I book tomorrow 3pm", "Tôi muốn đặt ngày mai 3h chiều"
+→ KEIN Link senden
+→ Antworte: "Perfekt! Unsere Mitarbeiter prüfen die Verfügbarkeit und melden sich. Vielen Dank!" (in Kundensprache)
+
+FALL B: Kunde fragt OHNE spezifische Zeit
+Beispiele: "Ich möchte einen Termin", "Can I book?", "Tôi muốn đặt lịch"
+→ Sende Setmore Link:
+  - Deutsch: "Gerne! Online: https://nailounge101.setmore.com/ Oder sagen Sie Tag und Uhrzeit, dann helfe ich gerne!"
+  - Englisch: "Sure! Online: https://nailounge101.setmore.com/ Or tell me day and time, I'll help!"
+  - Vietnamesisch: "Được! Đặt online: https://nailounge101.setmore.com/ Hoặc cho biết ngày giờ, tôi sẽ hỗ trợ!"
 
 ⚠️ AUSNAHME - MODELLKUNDEN:
 Wenn Kunde ein MODELLKUNDE ist (hat schon die Modell-Info bekommen):
 → KEIN normales Setmore Link geben
 → Nur nach Akzeptanz den speziellen Modellkunden-Link geben (siehe oben)
 
-Wenn Kunde ein NORMALER KUNDE ist (kein Modellkunde):
-- "Ich möchte einen Termin"
-- "Termin buchen"
-- "Kann ich buchen?"
-- "ja" (nach Preis-Frage → bedeutet will buchen)
-
-→ IMMER ZUERST Setmore Link geben:
-
-"Gerne! Sie können online buchen: https://nailounge101.setmore.com/
-
-Oder sagen Sie mir einfach Ihren Wunschtermin (Tag und Uhrzeit), dann helfe ich Ihnen gerne, bitte!"
-
 ⚠️ KRITISCH:
-- NORMALE KUNDEN: IMMER Link geben
+- NORMALE KUNDEN: IMMER Link geben (außer Fall A mit direkter Zeit)
 - MODELLKUNDEN: Nur speziellen Link nach Akzeptanz
-- NICHT nur fragen: "Welcher Tag passt Ihnen?" bei NORMALEN Kunden (Link vergessen!)
-- ZUERST Link, DANN manuelle Option (nur bei NORMALEN Kunden)
+- NICHT nur fragen: "Welcher Tag passt Ihnen?" bei NORMALEN Kunden ohne direkter Zeit (Link vergessen!)
 
 ⏰ ÖFFNUNGSZEITEN:
 Montag - Freitag: 09:30 - 19:00 Uhr
 Samstag: 09:30 - 16:00 Uhr
 Sonntag: Geschlossen
 
-🕐 ZEIT-FORMATE ERKENNEN:
-Diese Formate bedeuten ALLE eine Uhrzeit:
-- "4h" = Uhrzeit (16:00 oder 04:00)
-- "14h" = Uhrzeit (14:00)
-- "3h" = Uhrzeit (15:00 oder 03:00)
-- "4" = Uhrzeit im Termin-Kontext
-- "14" = Uhrzeit (14:00)
-- "9:30" = Uhrzeit (09:30)
-- "14 Uhr" = Uhrzeit (14:00)
-- "um 14" = Uhrzeit (14:00)
+🕐 ZEIT-FORMATE (WICHTIG - IMMER 24H FORMAT VERWENDEN!):
+- "3h" oder "3pm" oder "3h chiều" = 15:00 (15h im 24h-Format)
+- "6h" oder "6pm" oder "6h tối" = 18:00 (18h im 24h-Format)
+- "3h" ohne "chiều/pm" könnte 03:00 oder 15:00 sein - IMMER nachfragen welche!
+- Speichere Zeit IMMER in 24h-Format: 14:00, 15:00, 18:00 etc.
+- NIEMALS die Zeit von 18h auf 14h oder umgekehrt ändern!
 
 📋 BUCHUNGS-ABLAUF:
 
@@ -106,94 +116,53 @@ Diese Formate bedeuten ALLE eine Uhrzeit:
 Wenn ein Termin in der KUNDENZUSAMMENFASSUNG oder Chat History erwähnt wird:
 1. Prüfe das AKTUELLE DATUM (siehe oben)
 2. Wenn der Termin VOR dem heutigen Datum liegt → Termin ist VORBEI
-3. Frage: "Ihr Termin am [Datum] ist bereits vorbei. Möchten Sie einen neuen Termin vereinbaren?"
-4. NIEMALS einen vergangenen Termin als "weiterhin notiert" bestätigen
+3. Frage in Kundensprache: "Ihr Termin am [Datum] ist vorbei. Neuer Termin?"
 
-SCHRITT 1 - Termin-Anfrage:
-User: "Ich möchte einen Termin" / "Termin buchen" / "ja"
-→ "Gerne! Sie können online buchen: https://nailounge101.setmore.com/
-   Oder sagen Sie mir Ihren Wunschtermin (Tag und Uhrzeit), dann helfe ich Ihnen gerne, bitte!"
+SCHRITT 1 - Termin-Anfrage MIT Zeit:
+User: "Morgen 15h" / "Tomorrow 3pm" / "Ngày mai 3h chiều"
+→ "Perfekt! Mitarbeiter prüfen Verfügbarkeit. Vielen Dank!" (in Kundensprache)
+→ KEIN Link!
 
-SCHRITT 2 - Kunde nennt NUR Tag:
-User: "Montag" / "monday" / "Samstag"
-→ "Perfekt! Welche Uhrzeit am Montag passt Ihnen, bitte?"
+SCHRITT 2 - Termin-Anfrage OHNE Zeit:
+User: "Ich möchte Termin" / "I want appointment" / "Tôi muốn đặt lịch"
+→ Link + manuelle Option (in Kundensprache)
 
-SCHRITT 3 - Kunde nennt Uhrzeit:
+SCHRITT 3 - Kunde nennt NUR Tag:
+User: "Montag" / "Monday" / "Thứ hai"
+→ Frage nach Uhrzeit (in Kundensprache)
+
+SCHRITT 4 - Kunde nennt Uhrzeit:
 
 📋 ÖFFNUNGSZEITEN-CHECK:
 
 🔴 SCHRITT 0 - DATUM PRÜFEN (IMMER ZUERST!):
-Wenn Kunde ein spezifisches DATUM nennt (z.B. "25/2", "25.2.2026", "Dienstag 25/2"):
-1. Vergleiche mit AKTUELLEM DATUM (siehe oben im Context)
-2. Wenn das Datum VOR heute liegt:
-   → "Entschuldigung, der 25. Februar ist bereits vorbei. Welches Datum ab heute passt Ihnen, bitte?"
-   → STOP hier, NICHT weiter zu Öffnungszeiten-Check
-3. Nur wenn Datum HEUTE oder IN DER ZUKUNFT liegt → weiter zu A/B/C
+Wenn Datum VOR heute → "Entschuldigung, [Datum] ist vorbei. Welches Datum ab heute?" (in Kundensprache)
 
 A) MONTAG - FREITAG (09:30 - 19:00):
-
-Innerhalb 09:30-19:00:
-User: "Montag 10h" / "Dienstag 14h" / "Freitag 18h" / "18h"
-→ "Perfekt! Bitte warten Sie kurz, unsere Mitarbeiter prüfen die Verfügbarkeit und erstellen Ihren Termin. Vielen Dank, bitte!"
+Innerhalb → "Perfekt! Mitarbeiter prüfen. Vielen Dank!" (in Kundensprache)
+Außerhalb → "Entschuldigung, Mo-Fr 09:30-19:00. Welche Uhrzeit passt?" (in Kundensprache)
 
 ⚠️ WICHTIG: 18h = OK (vor 19:00), 19h = NICHT OK (ab 19:00 geschlossen)
 
-Außerhalb (vor 09:30 oder ab 19:00):
-User: "Montag 8h" / "Dienstag 19h" / "Freitag 20h" / "3h" / "8h"
-→ "Entschuldigung, wir sind Mo-Fr von 09:30 bis 19:00 Uhr geöffnet. Welche Uhrzeit zwischen 09:30 und 19:00 Uhr passt Ihnen, bitte?"
-
----
-
 B) SAMSTAG (09:30 - 16:00):
-
-Innerhalb 09:30-16:00:
-User: "Samstag 10h" / "Samstag 14h" / "Sa 15h" / "Sa 12h"
-→ "Perfekt! Bitte warten Sie kurz, unsere Mitarbeiter prüfen die Verfügbarkeit und erstellen Ihren Termin. Vielen Dank, bitte!"
+Innerhalb → "Perfekt! Mitarbeiter prüfen. Vielen Dank!" (in Kundensprache)
+Außerhalb → "Entschuldigung, Sa 09:30-16:00. Welche Uhrzeit passt?" (in Kundensprache)
 
 ⚠️ WICHTIG: 15h = OK, 15:30 = OK, 16h = NICHT OK (ab 16:00 geschlossen)
 
-Außerhalb (vor 09:30 oder ab 16:00):
-User: "Samstag 8h" / "Samstag 16h" / "Sa 17h" / "Sa 20h"
-→ "Entschuldigung, wir sind am Samstag von 09:30 bis 16:00 Uhr geöffnet. Welche Uhrzeit zwischen 09:30 und 16:00 Uhr passt Ihnen, bitte?"
-
----
-
 C) SONNTAG (GESCHLOSSEN):
-
-User: "Sonntag" / "Sonntag 14h" / "So" / "So 10h"
-→ "Entschuldigung, wir sind am Sonntag geschlossen. Möchten Sie einen Termin von Montag bis Samstag, bitte?"
-
----
+→ "Entschuldigung, Sonntag geschlossen. Mo-Sa Termin?" (in Kundensprache)
 
 D) WENN TAG NICHT GENANNT:
-
 User sagt nur Uhrzeit ohne Tag (z.B. "14h" ohne Tag davor):
 → Annehmen es ist Mo-Fr
 → Check gegen 09:30-19:00
 
-⚠️ WICHTIGE REGELN:
-
-1. Bei Termin-Anfrage → IMMER Link geben (NUR für NORMALE Kunden)
-   ✗ FALSCH: "Welcher Tag passt Ihnen?"
-   ✓ RICHTIG: "Gerne! Online: https://nailounge101.setmore.com/ Oder..."
-
-2. "4h", "14h", "3h" = UHRZEIT
-   - Wenn Tag schon genannt → SOFORT "Mitarbeiter prüfen"
-   - NICHT nochmal fragen
-
-3. Prüfe Öffnungszeiten:
-   - Mo-Fr: 09:30-19:00
-   - Sa: 09:30-16:00
-   - So: Geschlossen
-
-4. NICHT selbst buchen
-   ✗ FALSCH: "Termin ist gebucht"
-   ✓ RICHTIG: "Mitarbeiter prüfen"
-
 GRUNDREGELN:
-- Antworte auf Hochdeutsch, warm, professionell
+- Antworte IMMER in der Sprache des Kunden
 - Maximal 2-3 Sätze
-- Mindestens 1× "bitte"
+- Höflich und professionell
+- Zeit IMMER in 24h-Format speichern und verwenden
 
 PREISE:
 Maniküre: ohne 15€, Nagellack 25€, Shellac 35€
@@ -205,7 +174,8 @@ WICHTIG:
 - Prüfe ob [assistant] in History ist
 - Wenn JA → KEIN Gruß
 - Beziehe dich auf Chat History
-- Keine Wiederholungen`;
+- Keine Wiederholungen
+- Zeit NIEMALS ändern (18h bleibt 18h!)`;
 
 const MODELL_MESSAGE = `Guten Tag!
 Wir freuen uns sehr, dass Sie sich für unsere Dienstleistungen interessieren.
@@ -221,6 +191,34 @@ und das Ergebnis kann möglicherweise nicht perfekt sein — wir möchten Sie im
 Außerdem bieten wir eine Nachbesserung innerhalb von 3 Tagen an.
 Ist das für Sie in Ordnung? 💅`;
 
+const MODELL_MESSAGE_EN = `Hello!
+We are delighted that you are interested in our services.
+We are currently accepting customers for our students.
+The price for nails depends on the design:
+If you want natural clear, the price is 15 €.
+If you want natural makeup, French, color, glitter, ombre or cat eye, it costs 20 €.
+For more elaborate designs we charge an additional 1 € per design nail,
+and each rhinestone costs 0.50 €.
+However, our students may not be able to implement very complicated patterns.
+The treatment time is usually about 2 to 3 hours,
+and the result may not be perfect — we want to inform you in advance so you know.
+We also offer touch-ups within 3 days.
+Is that okay with you? 💅`;
+
+const MODELL_MESSAGE_VI = `Xin chào!
+Chúng tôi rất vui vì bạn quan tâm đến dịch vụ của chúng tôi.
+Hiện tại chúng tôi đang nhận khách cho học viên của mình.
+Giá làm móng phụ thuộc vào thiết kế:
+Nếu bạn muốn tự nhiên trong suốt, giá là 15 €.
+Nếu bạn muốn tự nhiên makeup, French, màu, glitter, ombre hoặc mắt mèo, giá là 20 €.
+Đối với thiết kế phức tạp hơn, chúng tôi tính thêm 1 € cho mỗi móng thiết kế,
+và mỗi viên đá giá 0,50 €.
+Tuy nhiên, học viên của chúng tôi có thể không thực hiện được những mẫu quá phức tạp.
+Thời gian thực hiện thường khoảng 2 đến 3 giờ,
+và kết quả có thể không hoàn hảo — chúng tôi muốn thông báo trước để bạn biết.
+Chúng tôi cũng cung cấp dịch vụ chỉnh sửa trong vòng 3 ngày.
+Bạn đồng ý chứ? 💅`;
+
 function hasModellKeyword(text) {
   if (!text) return false;
   const lower = text.toLowerCase();
@@ -234,29 +232,94 @@ function hasModellKeyword(text) {
   return keywords.some(k => lower.includes(k));
 }
 
-function isModellkundeConversation(userMessage, history) {
-  const hasKeyword = hasModellKeyword(userMessage);
+async function classifyCustomerIntent(userMessage, history) {
+  try {
+    const historyContext = history.slice(-5).map(msg => 
+      `[${msg.role}]: ${msg.message}`
+    ).join('\n');
+
+    const classification = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `Du bist ein Intent-Classifier für ein Nagelstudio.
+Analysiere die GESAMTE Nachricht und den Kontext, nicht nur einzelne Keywords.
+
+Klassifiziere als "MODELLKUNDE" wenn:
+- Inhalt handelt von Schülern/Azubis/Training/Übung/15 Euro
+- ODER Nachricht fragt nach günstigen Preisen/Anfänger-Service
+- AUCH OHNE direkte Keywords, wenn der Gesamtkontext darauf hindeutet
+
+Klassifiziere als "NORMAL" wenn:
+- Normale Terminanfrage
+- Frage nach regulären Services/Preisen
+- Kein Bezug zu Schülern/Training
+
+Antworte NUR mit: MODELLKUNDE oder NORMAL`
+        },
+        {
+          role: 'user',
+          content: `Kontext:\n${historyContext}\n\nAktuelle Nachricht: ${userMessage}\n\nKlassifikation?`
+        }
+      ],
+      max_tokens: 10,
+      temperature: 0.1
+    });
+
+    const intent = classification.choices[0].message.content.trim().toUpperCase();
+    console.log(`🎯 Intent classification: ${intent}`);
+    return intent === 'MODELLKUNDE';
+  } catch (error) {
+    console.error('❌ Intent classification error:', error);
+    return hasModellKeyword(userMessage);
+  }
+}
+
+function detectLanguage(text) {
+  const lower = text.toLowerCase();
   
-  if (!hasKeyword) {
-    console.log('✗ No Modell keyword in current message');
+  const viPatterns = ['tôi', 'bạn', 'được', 'không', 'muốn', 'cần', 'ngày', 'giờ', 'làm', 'đặt'];
+  const viCount = viPatterns.filter(p => lower.includes(p)).length;
+  
+  const enPatterns = ['i', 'you', 'can', 'want', 'need', 'appointment', 'book', 'tomorrow', 'today'];
+  const enCount = enPatterns.filter(p => new RegExp(`\\b${p}\\b`).test(lower)).length;
+  
+  const dePatterns = ['ich', 'sie', 'möchte', 'brauche', 'termin', 'buchen', 'morgen', 'heute'];
+  const deCount = dePatterns.filter(p => new RegExp(`\\b${p}\\b`).test(lower)).length;
+  
+  if (viCount >= 2) return 'vi';
+  if (enCount >= 2) return 'en';
+  if (deCount >= 1) return 'de';
+  
+  return 'de';
+}
+
+async function isModellkundeConversation(userMessage, history) {
+  const isModell = await classifyCustomerIntent(userMessage, history);
+  
+  if (!isModell) {
+    console.log('✗ Not a Modellkunde intent');
     return false;
   }
   
-  console.log('✓ Modell keyword found in current message');
+  console.log('✓ Modellkunde intent detected');
   
   if (history && history.length > 0) {
     const alreadySentModellInfo = history.some(msg => 
       msg.role === 'assistant' && 
-      msg.message.includes('Wir freuen uns sehr')
+      (msg.message.includes('Wir freuen uns sehr') || 
+       msg.message.includes('We are delighted') ||
+       msg.message.includes('Chúng tôi rất vui'))
     );
     
     if (alreadySentModellInfo) {
-      console.log('✗ Modell info already sent in this conversation - NOT sending again');
+      console.log('✗ Modell info already sent - NOT sending again');
       return false;
     }
   }
   
-  console.log('✓ First time Modell keyword detected - WILL send Modell info');
+  console.log('✓ First time Modell - WILL send info');
   return true;
 }
 
@@ -292,6 +355,7 @@ async function isStaffTakeover(contactId) {
     return false;
   }
 }
+
 async function initDB() {
   const createTableQuery = `
     CREATE TABLE IF NOT EXISTS chat_history (
@@ -382,10 +446,11 @@ async function updateConversationSummary(contactId, userName, history) {
 Erstelle eine kompakte Zusammenfassung auf Deutsch, die folgende Infos enthält (wenn vorhanden):
 - Was der Kunde gefragt/gewünscht hat
 - Welche Dienstleistungen besprochen wurden
-- Ob ein Termin vereinbart wurde (Tag, Uhrzeit)
+- Ob ein Termin vereinbart wurde (Tag, Uhrzeit IN 24H-FORMAT: 14:00, 18:00 etc.)
 - Ob der Kunde ein Modellkunde ist
 - Besondere Wünsche oder Präferenzen
 - Aktueller Status (z.B. "wartet auf Bestätigung", "Termin gebucht", "fragt nach Preis")
+WICHTIG: Speichere Uhrzeiten IMMER in 24h-Format und ändere sie NIEMALS!
 Maximal 5 Sätze. Nur die wichtigsten Infos.`
         },
         {
@@ -477,7 +542,9 @@ app.post('/chat', async (req, res) => {
     
     const hasGreeted = history.some(msg => 
       msg.role === 'assistant' && 
-      (msg.message.includes('Guten Tag') || msg.message.includes('Willkommen'))
+      (msg.message.includes('Guten Tag') || msg.message.includes('Willkommen') ||
+       msg.message.includes('Hello') || msg.message.includes('Welcome') ||
+       msg.message.includes('Xin chào') || msg.message.includes('Chào mừng'))
     );
 
     const isReturningCustomer = existingSummary !== null;
@@ -498,6 +565,9 @@ app.post('/chat', async (req, res) => {
       minute: '2-digit'
     });
     const dateContext = `🕐 AKTUELLES DATUM & UHRZEIT (Berlin): ${berlinTime}\n`;
+    
+    const userLang = detectLanguage(user_message);
+    console.log(`🌍 Detected language: ${userLang}`);
 
     const userContent = shouldSkipGreeting
       ? `${dateContext}${summaryContext}
@@ -511,9 +581,9 @@ CURRENT MESSAGE: ${user_message}
 ---
 
 ⚠️ IMPORTANT: You have ALREADY greeted this customer before (see history or summary above).
-DO NOT say "Guten Tag", "Hallo", or "Willkommen" again.
-${isReturningCustomer && !hasGreeted ? '⚠️ This is a RETURNING CUSTOMER from a previous day. Continue the conversation naturally based on the summary above.' : ''}
-Answer the question DIRECTLY.`
+DO NOT greet again.
+${isReturningCustomer && !hasGreeted ? '⚠️ This is a RETURNING CUSTOMER from a previous day. Continue naturally based on the summary above.' : ''}
+Answer the question DIRECTLY in the CUSTOMER'S LANGUAGE (detected: ${userLang}).`
       : `${dateContext}${summaryContext}
 Chat history (last 50 messages):
 ${historyText}
@@ -524,10 +594,10 @@ CURRENT MESSAGE: ${user_message}
 
 ---
 
-This is a ${history.length === 0 ? 'NEW' : 'CONTINUING'} conversation. Reply appropriately.`;
+This is a ${history.length === 0 ? 'NEW' : 'CONTINUING'} conversation.
+Answer in the CUSTOMER'S LANGUAGE (detected: ${userLang}).`;
 
     console.log(`🔍 DEBUG - User message: "${user_message}"`);
-    console.log(`🔍 DEBUG - hasModellKeyword: ${hasModellKeyword(user_message)}`);
     console.log(`🔍 DEBUG - History length: ${history.length}`);
     
     const completion = await openai.chat.completions.create({
@@ -549,10 +619,7 @@ This is a ${history.length === 0 ? 'NEW' : 'CONTINUING'} conversation. Reply app
     let aiResponse = completion.choices[0].message.content;
     console.log(`🤖 AI response (original): ${aiResponse.substring(0, 100)}...`);
     
-    console.log(`🔍 DEBUG - AI includes "Wir freuen uns": ${aiResponse.includes('Wir freuen uns sehr')}`);
-    console.log(`🔍 DEBUG - AI response length: ${aiResponse.length}`);
-    
-    const shouldSendModellInfo = isModellkundeConversation(user_message, history);
+    const shouldSendModellInfo = await isModellkundeConversation(user_message, history);
 
     console.log(`🔍 DEBUG - shouldSendModellInfo: ${shouldSendModellInfo}`);
     
@@ -563,11 +630,16 @@ This is a ${history.length === 0 ? 'NEW' : 'CONTINUING'} conversation. Reply app
         msg.role === 'assistant'
       );
       
-      const modellMessage = alreadyGreeted
-        ? MODELL_MESSAGE.replace('Guten Tag!\n', '')
-        : MODELL_MESSAGE;
+      let modellMessage;
+      if (userLang === 'vi') {
+        modellMessage = alreadyGreeted ? MODELL_MESSAGE_VI.replace('Xin chào!\n', '') : MODELL_MESSAGE_VI;
+      } else if (userLang === 'en') {
+        modellMessage = alreadyGreeted ? MODELL_MESSAGE_EN.replace('Hello!\n', '') : MODELL_MESSAGE_EN;
+      } else {
+        modellMessage = alreadyGreeted ? MODELL_MESSAGE.replace('Guten Tag!\n', '') : MODELL_MESSAGE;
+      }
       
-      console.log(`📝 Modell message ${alreadyGreeted ? 'WITHOUT' : 'WITH'} greeting`);
+      console.log(`📝 Modell message (${userLang}) ${alreadyGreeted ? 'WITHOUT' : 'WITH'} greeting`);
       
       res.json({
         bot_response: modellMessage,
@@ -625,6 +697,7 @@ This is a ${history.length === 0 ? 'NEW' : 'CONTINUING'} conversation. Reply app
     });
   }
 });
+
 app.post('/staff-reply', async (req, res) => {
   try {
     const { contact_id, user_name, staff_message } = req.body;
