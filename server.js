@@ -28,12 +28,17 @@ const openai = new OpenAI({
 
 const SYSTEM_PROMPT = `Du bist der KI-Assistent von Nailounge101 Berlin (Reichsstraße 101, 14052 Berlin).
 
-🌍 SPRACHE (WICHTIG!):
-- Antworte IMMER in der Sprache des Kunden
-- Kunde schreibt auf Deutsch → Antworte auf Deutsch
-- Kunde schreibt auf Englisch → Antworte auf Englisch
-- Kunde schreibt auf Vietnamesisch → Antworte auf Vietnamesisch
-- Erkenne die Sprache aus der aktuellen Nachricht
+🌍 SPRACHE (KRITISCH - OBERSTE PRIORITÄT!):
+‼️ ANTWORTE IMMER IN DER SPRACHE DER AKTUELLEN NACHRICHT ‼️
+
+SPRACHERKENNUNG:
+- "chủ nhật", "ngày mai", "tôi muốn", "được không" = VIETNAMESISCH → Antworte auf VIETNAMESISCH
+- "hello", "hi", "tomorrow", "I want", "can I" = ENGLISCH → Antworte auf ENGLISCH  
+- "Guten Tag", "ich möchte", "morgen", "Termin" = DEUTSCH → Antworte auf DEUTSCH
+
+🔴 NIEMALS Sprache wechseln basierend auf Chat History!
+🔴 Jede neue Nachricht kann eine andere Sprache sein!
+🔴 "chủ nhật 17h" ist VIETNAMESISCH → Antworte NUR auf VIETNAMESISCH!
 
 🔴🔴🔴 KRITISCHE REGEL - NIEMALS WIEDERHOLEN 🔴🔴🔴
 
@@ -139,19 +144,38 @@ SCHRITT 4 - Kunde nennt Uhrzeit:
 Wenn Datum VOR heute → "Entschuldigung, [Datum] ist vorbei. Welches Datum ab heute?" (in Kundensprache)
 
 A) MONTAG - FREITAG (09:30 - 19:00):
-Innerhalb → "Perfekt! Mitarbeiter prüfen. Vielen Dank!" (in Kundensprache)
-Außerhalb → "Entschuldigung, Mo-Fr 09:30-19:00. Welche Uhrzeit passt?" (in Kundensprache)
+✅ Innerhalb:
+  - Deutsch: "Perfekt! Mitarbeiter prüfen die Verfügbarkeit. Vielen Dank!"
+  - English: "Perfect! Staff will check availability. Thank you!"
+  - Vietnamese: "Được! Nhân viên sẽ kiểm tra lịch. Cảm ơn!"
+❌ Außerhalb:
+  - Deutsch: "Entschuldigung, Mo-Fr 09:30-19:00. Welche Uhrzeit zwischen 09:30-19:00?"
+  - English: "Sorry, Mon-Fri 09:30-19:00. What time between 09:30-19:00?"
+  - Vietnamese: "Xin lỗi, Thứ hai-Thứ sáu 09:30-19:00. Giờ nào từ 09:30-19:00?"
 
 ⚠️ WICHTIG: 18h = OK (vor 19:00), 19h = NICHT OK (ab 19:00 geschlossen)
 
 B) SAMSTAG (09:30 - 16:00):
-Innerhalb → "Perfekt! Mitarbeiter prüfen. Vielen Dank!" (in Kundensprache)
-Außerhalb → "Entschuldigung, Sa 09:30-16:00. Welche Uhrzeit passt?" (in Kundensprache)
+✅ Innerhalb:
+  - Deutsch: "Perfekt! Mitarbeiter prüfen die Verfügbarkeit. Vielen Dank!"
+  - English: "Perfect! Staff will check availability. Thank you!"
+  - Vietnamese: "Được! Nhân viên sẽ kiểm tra lịch. Cảm ơn!"
+❌ Außerhalb:
+  - Deutsch: "Entschuldigung, samstags 09:30-16:00. Welche Uhrzeit zwischen 09:30-16:00?"
+  - English: "Sorry, Saturday 09:30-16:00. What time between 09:30-16:00?"
+  - Vietnamese: "Xin lỗi, Thứ bảy 09:30-16:00. Giờ nào từ 09:30-16:00?"
 
 ⚠️ WICHTIG: 15h = OK, 15:30 = OK, 16h = NICHT OK (ab 16:00 geschlossen)
 
 C) SONNTAG (GESCHLOSSEN):
-→ "Entschuldigung, Sonntag geschlossen. Mo-Sa Termin?" (in Kundensprache)
+  - Deutsch: "Entschuldigung, sonntags geschlossen. Möchten Sie einen Termin von Montag bis Samstag?"
+  - English: "Sorry, closed on Sunday. Would you like to book Monday to Saturday?"
+  - Vietnamese: "Xin lỗi, chủ nhật đóng cửa. Bạn muốn đặt lịch từ thứ hai đến thứ bảy không?"
+
+🔴 KRITISCHES BEISPIEL:
+User: "chủ nhật 17h" (VIETNAMESISCH!)
+Bot: "Xin lỗi, chủ nhật đóng cửa. Bạn muốn đặt lịch từ thứ hai đến thứ bảy không?"
+NICHT: "Entschuldigung, Sonntag..." (FALSCH! User schreibt Vietnamesisch!)
 
 D) WENN TAG NICHT GENANNT:
 User sagt nur Uhrzeit ohne Tag (z.B. "14h" ohne Tag davor):
@@ -277,22 +301,49 @@ Antworte NUR mit: MODELLKUNDE oder NORMAL`
 }
 
 function detectLanguage(text) {
-  const lower = text.toLowerCase();
+  const lower = text.toLowerCase().trim();
   
-  const viPatterns = ['tôi', 'bạn', 'được', 'không', 'muốn', 'cần', 'ngày', 'giờ', 'làm', 'đặt'];
+  // Direct English greetings - highest priority
+  const englishGreetings = ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening'];
+  if (englishGreetings.some(g => lower === g || lower.startsWith(g + ' '))) {
+    return 'en';
+  }
+  
+  // Direct German greetings
+  const germanGreetings = ['guten tag', 'hallo', 'guten morgen', 'guten abend', 'servus', 'moin'];
+  if (germanGreetings.some(g => lower === g || lower.startsWith(g + ' '))) {
+    return 'de';
+  }
+  
+  // Direct Vietnamese greetings
+  const vietnameseGreetings = ['xin chào', 'chào', 'chào bạn'];
+  if (vietnameseGreetings.some(g => lower === g || lower.startsWith(g + ' '))) {
+    return 'vi';
+  }
+  
+  // Vietnamese day names - high priority
+  const vietnameseDays = ['chủ nhật', 'thứ hai', 'thứ ba', 'thứ tư', 'thứ năm', 'thứ sáu', 'thứ bảy', 'thứ 2', 'thứ 3', 'thứ 4', 'thứ 5', 'thứ 6', 'thứ 7'];
+  if (vietnameseDays.some(d => lower.includes(d))) {
+    return 'vi';
+  }
+  
+  // Pattern matching for longer messages
+  const viPatterns = ['tôi', 'bạn', 'được', 'không', 'muốn', 'cần', 'ngày', 'giờ', 'làm', 'đặt', 'ạ', 'ơi', 'nhé'];
   const viCount = viPatterns.filter(p => lower.includes(p)).length;
   
-  const enPatterns = ['i', 'you', 'can', 'want', 'need', 'appointment', 'book', 'tomorrow', 'today'];
+  const enPatterns = ['i', 'you', 'can', 'want', 'need', 'appointment', 'book', 'tomorrow', 'today', 'please', 'thank', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
   const enCount = enPatterns.filter(p => new RegExp(`\\b${p}\\b`).test(lower)).length;
   
-  const dePatterns = ['ich', 'sie', 'möchte', 'brauche', 'termin', 'buchen', 'morgen', 'heute'];
+  const dePatterns = ['ich', 'sie', 'möchte', 'brauche', 'termin', 'buchen', 'morgen', 'heute', 'bitte', 'danke', 'montag', 'dienstag', 'mittwoch', 'donnerstag', 'freitag', 'samstag', 'sonntag'];
   const deCount = dePatterns.filter(p => new RegExp(`\\b${p}\\b`).test(lower)).length;
   
-  if (viCount >= 2) return 'vi';
-  if (enCount >= 2) return 'en';
+  // Lower threshold for Vietnamese since it has unique characters
+  if (viCount >= 1) return 'vi';
+  if (enCount >= 1) return 'en';
   if (deCount >= 1) return 'de';
   
-  return 'de';
+  // Default to English (not German) for ambiguous cases
+  return 'en';
 }
 
 async function isModellkundeConversation(userMessage, history) {
@@ -569,6 +620,13 @@ app.post('/chat', async (req, res) => {
     const userLang = detectLanguage(user_message);
     console.log(`🌍 Detected language: ${userLang}`);
 
+    const languageMap = {
+      'vi': 'VIETNAMESE (Tiếng Việt)',
+      'en': 'ENGLISH',
+      'de': 'GERMAN (Deutsch)'
+    };
+    const detectedLangName = languageMap[userLang] || 'ENGLISH';
+    
     const userContent = shouldSkipGreeting
       ? `${dateContext}${summaryContext}
 Chat history (last 50 messages):
@@ -580,10 +638,19 @@ CURRENT MESSAGE: ${user_message}
 
 ---
 
+🔴🔴🔴 CRITICAL LANGUAGE INSTRUCTION 🔴🔴🔴
+THE CUSTOMER IS WRITING IN: ${detectedLangName}
+YOU MUST RESPOND IN: ${detectedLangName}
+
+Examples:
+- Customer: "chủ nhật 17h" → Respond in VIETNAMESE
+- Customer: "Sunday 5pm" → Respond in ENGLISH
+- Customer: "Sonntag 17h" → Respond in GERMAN
+
 ⚠️ IMPORTANT: You have ALREADY greeted this customer before (see history or summary above).
 DO NOT greet again.
 ${isReturningCustomer && !hasGreeted ? '⚠️ This is a RETURNING CUSTOMER from a previous day. Continue naturally based on the summary above.' : ''}
-Answer the question DIRECTLY in the CUSTOMER'S LANGUAGE (detected: ${userLang}).`
+Answer the question DIRECTLY in ${detectedLangName}.`
       : `${dateContext}${summaryContext}
 Chat history (last 50 messages):
 ${historyText}
@@ -594,8 +661,12 @@ CURRENT MESSAGE: ${user_message}
 
 ---
 
+🔴🔴🔴 CRITICAL LANGUAGE INSTRUCTION 🔴🔴🔴
+THE CUSTOMER IS WRITING IN: ${detectedLangName}
+YOU MUST RESPOND IN: ${detectedLangName}
+
 This is a ${history.length === 0 ? 'NEW' : 'CONTINUING'} conversation.
-Answer in the CUSTOMER'S LANGUAGE (detected: ${userLang}).`;
+Greet and answer in ${detectedLangName}.`;
 
     console.log(`🔍 DEBUG - User message: "${user_message}"`);
     console.log(`🔍 DEBUG - History length: ${history.length}`);
