@@ -58,32 +58,28 @@ WENN Chat History LEER ist:
   - Englisch: "Hello! Welcome to Nailounge101 Berlin. How can I help you?"
   - Vietnamesisch: "Xin chào! Chào mừng đến Nailounge101 Berlin. Tôi có thể giúp gì?"
 
-MODELLKUNDEN - BUCHUNGS-FLOW (3 SCHRITTE):
+🔴🔴🔴 MODELLKUNDEN - TU NICHT SELBST ANTWORTEN! 🔴🔴🔴
 
-🔴 SCHRITT 1 - MODELLKUNDE INFO SENDEN:
-Wenn Kunde MODELLKUNDE ist (fragt nach modell/azubi/15€):
-→ Sende die Modellkunden-Info (siehe unten - wird automatisch eingefügt)
-→ Diese Info wird NUR 1 MAL gesendet
+⚠️ WICHTIG: Wenn Kunde nach "modell" / "azubi" / "15€" fragt:
+→ Du MUSST NICHT antworten!
+→ Das System erkennt automatisch Modellkunden
+→ Das System sendet automatisch die richtigen Nachrichten
+→ IGNORIERE Modellkunden-Anfragen komplett in deiner Antwort
+→ Antworte NUR auf ANDERE Fragen (Preise, Öffnungszeiten, etc.)
 
-🔴 SCHRITT 2 - KUNDE AKZEPTIERT:
-Wenn MODELLKUNDE "ja" / "ok" / "in Ordnung" / "passt" / "agree" / "được" antwortet:
-→ Sende SOFORT den Buchungslink mit Vorauszahlungs-Info
-→ Deutsch: [MODELL_BOOKING_MESSAGE wird automatisch eingefügt]
-→ Englisch: [MODELL_BOOKING_MESSAGE_EN wird automatisch eingefügt]  
-→ Vietnamesisch: [MODELL_BOOKING_MESSAGE_VI wird automatisch eingefügt]
+Beispiel:
+User: "modell"
+→ DU: Schreibe NICHTS! System handled es.
 
-🔴 SCHRITT 3 - FRAGE ZU VORAUSZAHLUNG:
-Wenn MODELLKUNDE fragt "Warum Vorauszahlung?" / "Why prepay?" / "Tại sao phải trả trước?":
-→ Deutsch: [MODELL_PREPAYMENT_REASON wird automatisch eingefügt]
-→ Englisch: [MODELL_PREPAYMENT_REASON_EN wird automatisch eingefügt]
-→ Vietnamesisch: [MODELL_PREPAYMENT_REASON_VI wird automatisch eingefügt]
+User: "modell preis"  
+→ DU: Schreibe NICHTS! System handled es.
 
-⚠️ WICHTIG FÜR MODELLKUNDEN:
-- Modellkunden buchen IMMER über den speziellen Link: https://nailounge101.setmore.com/team/jeeZoVSakEm9KfPuHaC7ZwfaPN9CKI1R
-- NIEMALS sagen "Mitarbeiter prüfen" für Modellkunden
-- NIEMALS normales Setmore Link geben (https://nailounge101.setmore.com/)
-- Modellkunden müssen ONLINE buchen und VORAUSZAHLEN
-- Wenn Modellkunde Tag+Zeit nennt → Trotzdem Link senden (NICHT "Mitarbeiter prüfen")
+User fragt nach modell UND normalen Services:
+→ DU: Beantworte nur den normalen Service-Teil
+
+🔴 NIEMALS selbst über Modellkunden sprechen!
+🔴 NIEMALS "15€" oder "Schüler" in deiner Antwort erwähnen!
+🔴 Das System macht das automatisch!
 
 BUCHUNG (NORMALE KUNDEN - NICHT MODELLKUNDEN):
 🔴🔴🔴 KRITISCH - ÖFFNUNGSZEITEN 🔴🔴🔴
@@ -987,26 +983,10 @@ Greet and answer in ${detectedLangName}.`;
     console.log(`🔍 DEBUG - User message: "${user_message}"`);
     console.log(`🔍 DEBUG - History length: ${history.length}`);
     
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4.1-2025-04-14',
-      messages: [
-        {
-          role: 'system',
-          content: SYSTEM_PROMPT
-        },
-        {
-          role: 'user',
-          content: userContent
-        }
-      ],
-      max_tokens: 800,
-      temperature: 0.7
-    });
+    // ⚠️ CHECK MODELLKUNDE **BEFORE** CALLING AI
+    // If this is modellkunde-related, we don't need AI response at all!
     
-    let aiResponse = completion.choices[0].message.content;
-    console.log(`🤖 AI response (original): ${aiResponse.substring(0, 100)}...`);
-    
-    // Check if this is a modellkunde customer trying to book (acceptance + datetime)
+    // Check 1: Is customer trying to book (already modellkunde + acceptance + datetime)?
     const isModellBooking = isModellkundeAcceptanceWithBooking(user_message, history);
     
     if (isModellBooking) {
@@ -1042,15 +1022,14 @@ Greet and answer in ${detectedLangName}.`;
         });
       });
       
-      return;
+      return; // EXIT - don't call AI
     }
     
+    // Check 2: Is this first-time modellkunde query?
     const shouldSendModellInfo = await isModellkundeConversation(user_message, history);
 
-    console.log(`🔍 DEBUG - shouldSendModellInfo: ${shouldSendModellInfo}`);
-    
     if (shouldSendModellInfo) {
-      console.log('🔍 Sending Modell info');
+      console.log('🔍 Sending Modell info - SKIP AI');
       
       const alreadyGreeted = history.some(msg => 
         msg.role === 'assistant'
@@ -1058,11 +1037,11 @@ Greet and answer in ${detectedLangName}.`;
       
       let modellMessage;
       if (userLang === 'vi') {
-        modellMessage = alreadyGreeted ? MODELL_MESSAGE_VI.replace('Xin chào!\n', '') : MODELL_MESSAGE_VI;
+        modellMessage = alreadyGreeted ? MODELL_MESSAGE_VI.replace('Xin chào! 😊\n', '') : MODELL_MESSAGE_VI;
       } else if (userLang === 'en') {
-        modellMessage = alreadyGreeted ? MODELL_MESSAGE_EN.replace('Hello!\n', '') : MODELL_MESSAGE_EN;
+        modellMessage = alreadyGreeted ? MODELL_MESSAGE_EN.replace('Hello! 😊\n', '') : MODELL_MESSAGE_EN;
       } else {
-        modellMessage = alreadyGreeted ? MODELL_MESSAGE.replace('Guten Tag!\n', '') : MODELL_MESSAGE;
+        modellMessage = alreadyGreeted ? MODELL_MESSAGE.replace('Guten Tag! 😊\n', '') : MODELL_MESSAGE;
       }
       
       console.log(`📝 Modell message (${userLang}) ${alreadyGreeted ? 'WITHOUT' : 'WITH'} greeting`);
@@ -1086,9 +1065,29 @@ Greet and answer in ${detectedLangName}.`;
         });
       });
       
-      return;
+      return; // EXIT - don't call AI
     }
     
+    // If NOT modellkunde-related, call AI as normal
+    console.log('📞 Calling AI for normal response...');
+    
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4.1-2025-04-14',
+      messages: [
+        {
+          role: 'system',
+          content: SYSTEM_PROMPT
+        },
+        {
+          role: 'user',
+          content: userContent
+        }
+      ],
+      max_tokens: 800,
+      temperature: 0.7
+    });
+    
+    let aiResponse = completion.choices[0].message.content;
     console.log(`🤖 AI response (final): ${aiResponse.substring(0, 100)}... (length: ${aiResponse.length})`);
     
     res.json({
