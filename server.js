@@ -1039,8 +1039,10 @@ app.post('/chat', async (req, res) => {
       lower.includes('von vorne') ||
       lower.includes('từ đầu');
     
-    if ((isJustGreeting || isRestartRequest) && history.length > 0) {
-      console.log('🔄 RESTART/GREETING detected - treating as fresh normal customer');
+    // If just greeting (even in ongoing conversation), reset to normal
+    // OR if explicit restart request
+    if (isJustGreeting || isRestartRequest) {
+      console.log('🔄 GREETING/RESTART detected - treating as fresh normal customer');
       customerType = 'normal';  // Force normal, not NULL
       
       // Also detect language from greeting
@@ -1090,7 +1092,8 @@ app.post('/chat', async (req, res) => {
         const englishSignals = [
           'hello', 'hi', 'thank you', 'i want', 'i would', 'can i', 'price list',
           'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
-          'regular customer', 'appointment', 'tomorrow', 'today'
+          'regular customer', 'appointment', 'tomorrow', 'today', 'menu', 'detail',
+          'price', 'assume', 'please', 'modell', 'model', 'trainee'
         ];
         
         // Strong signals for German
@@ -1159,10 +1162,15 @@ app.post('/chat', async (req, res) => {
     );
 
     const isReturningCustomer = existingSummary !== null;
-    const shouldSkipGreeting = hasGreeted || isReturningCustomer;
+    
+    // If user just sent a greeting, ALWAYS greet back (override skip logic)
+    const userJustGreeted = ['xin chào', 'hello', 'hi', 'hey', 'guten tag', 'hallo', 'chào'].includes(lower);
+    const shouldSkipGreeting = (hasGreeted || isReturningCustomer) && !userJustGreeted;
     
     if (shouldSkipGreeting) {
       console.log(`✓ Skip greeting - hasGreeted: ${hasGreeted}, isReturning: ${isReturningCustomer}`);
+    } else if (userJustGreeted) {
+      console.log(`✓ User just greeted - WILL greet back even if returning customer`);
     }
     
     const now = new Date();
