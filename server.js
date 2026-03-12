@@ -568,18 +568,10 @@ function customerWantsNormalBooking(userMessage) {
   return normalKeywords.some(k => lower.includes(k));
 }
 
-async function isModellkundeConversation(userMessage, history) {
-  const isModell = await classifyCustomerIntent(userMessage, history);
-  
-  if (!isModell) {
-    console.log('✗ Not a Modellkunde intent');
-    return false;
-  }
-  
-  console.log('✓ Modellkunde intent detected');
-  
-  if (history && history.length > 0) {
-    // Filter out empty/SYSTEM messages first
+async function isModellkundeConversation(userMessage, history, customerType) {
+  // If customer type is already 'modell', check if we've sent info
+  if (customerType === 'modell') {
+    // Filter out invalid messages
     const validHistory = history.filter(msg => 
       msg.message && 
       msg.message.trim().length > 0 && 
@@ -601,10 +593,14 @@ async function isModellkundeConversation(userMessage, history) {
       console.log('✗ Modell info already sent - NOT sending again');
       return false;
     }
+    
+    console.log('✓ Customer type is MODELL and no modell info in history - WILL send info');
+    return true;
   }
   
-  console.log('✓ First time Modell OR no valid modell message in history - WILL send info');
-  return true;
+  // If not modell type, don't send modell info
+  console.log('✗ Customer type is not MODELL');
+  return false;
 }
 
 function isModellkundeAcceptanceWithBooking(userMessage, history) {
@@ -983,6 +979,14 @@ app.post('/chat', async (req, res) => {
       customerType = isModell ? 'modell' : 'normal';
       console.log(`🎯 First-time customer type detection: ${customerType}`);
       await updateCustomerState(contact_id, user_name, customerType, userLang);
+    } else if (customerType === 'normal') {
+      // Re-check if normal customer is now asking about modell
+      const isModell = await classifyCustomerIntent(user_message, history);
+      if (isModell) {
+        console.log(`🔄 Customer switching from NORMAL to MODELL`);
+        customerType = 'modell';
+        await updateCustomerState(contact_id, user_name, 'modell', userLang);
+      }
     }
     
     console.log(`✅ Final state: customerType=${customerType}, userLang=${userLang}`);
@@ -1183,7 +1187,7 @@ Greet and answer in ${detectedLangName}.`;
       
       // Check 2: Is this first-time modellkunde query?
       console.log('🔍 Step 2: Checking if should send modell info (isModellkundeConversation)...');
-      const shouldSendModellInfo = await isModellkundeConversation(user_message, history);
+      const shouldSendModellInfo = await isModellkundeConversation(user_message, history, customerType);
       console.log(`🔍 Result: shouldSendModellInfo = ${shouldSendModellInfo}\n`);
 
       if (shouldSendModellInfo) {
