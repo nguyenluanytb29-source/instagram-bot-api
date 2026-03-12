@@ -58,30 +58,7 @@ WENN Chat History LEER ist:
   - Englisch: "Hello! Welcome to Nailounge101 Berlin. How can I help you?"
   - Vietnamesisch: "Xin chào! Chào mừng đến Nailounge101 Berlin. Tôi có thể giúp gì?"
 
-🔴🔴🔴 MODELLKUNDEN - TU NICHT SELBST ANTWORTEN! 🔴🔴🔴
-
-⚠️ WICHTIG: Wenn Kunde nach "modell" / "azubi" / "15€" fragt:
-→ Du MUSST NICHT antworten!
-→ Das System erkennt automatisch Modellkunden
-→ Das System sendet automatisch die richtigen Nachrichten
-→ IGNORIERE Modellkunden-Anfragen komplett in deiner Antwort
-→ Antworte NUR auf ANDERE Fragen (Preise, Öffnungszeiten, etc.)
-
-Beispiel:
-User: "modell"
-→ DU: Schreibe NICHTS! System handled es.
-
-User: "modell preis"  
-→ DU: Schreibe NICHTS! System handled es.
-
-User fragt nach modell UND normalen Services:
-→ DU: Beantworte nur den normalen Service-Teil
-
-🔴 NIEMALS selbst über Modellkunden sprechen!
-🔴 NIEMALS "15€" oder "Schüler" in deiner Antwort erwähnen!
-🔴 Das System macht das automatisch!
-
-BUCHUNG (NORMALE KUNDEN - NICHT MODELLKUNDEN):
+BUCHUNG (NORMALE KUNDEN):
 🔴🔴🔴 KRITISCH - ÖFFNUNGSZEITEN 🔴🔴🔴
 
 MONTAG - FREITAG: 09:30 bis 19:00 Uhr
@@ -582,7 +559,15 @@ async function isModellkundeConversation(userMessage, history) {
   console.log('✓ Modellkunde intent detected');
   
   if (history && history.length > 0) {
-    const alreadySentModellInfo = history.some(msg => 
+    // Filter out empty/SYSTEM messages first
+    const validHistory = history.filter(msg => 
+      msg.message && 
+      msg.message.trim().length > 0 && 
+      msg.message !== '(SYSTEM)' &&
+      !msg.message.startsWith('(SYSTEM)')
+    );
+    
+    const alreadySentModellInfo = validHistory.some(msg => 
       msg.role === 'assistant' && 
       (msg.message.includes('Cảm ơn bạn đã quan tâm') ||  // Vietnamese
        msg.message.includes('Thank you for your interest') ||  // English
@@ -598,13 +583,21 @@ async function isModellkundeConversation(userMessage, history) {
     }
   }
   
-  console.log('✓ First time Modell - WILL send info');
+  console.log('✓ First time Modell OR no valid modell message in history - WILL send info');
   return true;
 }
 
 function isModellkundeAcceptanceWithBooking(userMessage, history) {
+  // Filter out empty/SYSTEM messages first
+  const validHistory = history.filter(msg => 
+    msg.message && 
+    msg.message.trim().length > 0 && 
+    msg.message !== '(SYSTEM)' &&
+    !msg.message.startsWith('(SYSTEM)')
+  );
+  
   // Check if this is a modellkunde customer (already received modell info)
-  const hasReceivedModellInfo = history.some(msg => 
+  const hasReceivedModellInfo = validHistory.some(msg => 
     msg.role === 'assistant' && 
     (msg.message.includes('Cảm ơn bạn đã quan tâm') ||  // Vietnamese
      msg.message.includes('Thank you for your interest') ||  // English
@@ -618,7 +611,7 @@ function isModellkundeAcceptanceWithBooking(userMessage, history) {
   );
   
   if (!hasReceivedModellInfo) {
-    console.log('✗ Customer has NOT received modell info yet');
+    console.log('✗ Customer has NOT received modell info yet (or only SYSTEM messages)');
     return false; // Not a modellkunde customer yet
   }
   
