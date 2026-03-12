@@ -584,9 +584,12 @@ async function isModellkundeConversation(userMessage, history) {
   if (history && history.length > 0) {
     const alreadySentModellInfo = history.some(msg => 
       msg.role === 'assistant' && 
-      (msg.message.includes('Wir freuen uns sehr') || 
-       msg.message.includes('We are delighted') ||
-       msg.message.includes('Chúng tôi rất vui'))
+      (msg.message.includes('Cảm ơn bạn đã quan tâm') ||  // Vietnamese
+       msg.message.includes('Thank you for your interest') ||  // English
+       msg.message.includes('Vielen Dank für Ihr Interesse') ||  // German
+       msg.message.includes('Giá phụ thuộc vào thiết kế') ||  // Vietnamese pricing
+       msg.message.includes('The price depends on the design') ||  // English pricing
+       msg.message.includes('Der Preis richtet sich nach'))  // German pricing
     );
     
     if (alreadySentModellInfo) {
@@ -1050,28 +1053,48 @@ Greet and answer in ${detectedLangName}.`;
     console.log(`🔍 Result: shouldSendModellInfo = ${shouldSendModellInfo}\n`);
 
     if (shouldSendModellInfo) {
-      console.log('🔍 Sending Modell info - SKIP AI');
+      console.log('✅ SENDING MODELL INFO - SKIP AI');
       
       const alreadyGreeted = history.some(msg => 
         msg.role === 'assistant'
       );
       
+      console.log(`  alreadyGreeted: ${alreadyGreeted}`);
+      console.log(`  userLang: ${userLang}`);
+      
       let modellMessage;
       if (userLang === 'vi') {
-        modellMessage = alreadyGreeted ? MODELL_MESSAGE_VI.replace('Xin chào! 😊\n', '') : MODELL_MESSAGE_VI;
+        modellMessage = MODELL_MESSAGE_VI;
+        if (alreadyGreeted) {
+          modellMessage = modellMessage.replace('Xin chào! 😊\n', '');
+        }
       } else if (userLang === 'en') {
-        modellMessage = alreadyGreeted ? MODELL_MESSAGE_EN.replace('Hello! 😊\n', '') : MODELL_MESSAGE_EN;
+        modellMessage = MODELL_MESSAGE_EN;
+        if (alreadyGreeted) {
+          modellMessage = modellMessage.replace('Hello! 😊\n', '');
+        }
       } else {
-        modellMessage = alreadyGreeted ? MODELL_MESSAGE.replace('Guten Tag! 😊\n', '') : MODELL_MESSAGE;
+        modellMessage = MODELL_MESSAGE;
+        if (alreadyGreeted) {
+          modellMessage = modellMessage.replace('Guten Tag! 😊\n', '');
+        }
       }
       
-      console.log(`📝 Modell message (${userLang}) ${alreadyGreeted ? 'WITHOUT' : 'WITH'} greeting`);
+      console.log(`  modellMessage length: ${modellMessage ? modellMessage.length : 'NULL'}`);
+      console.log(`  modellMessage preview: ${modellMessage ? modellMessage.substring(0, 50) : 'NULL'}...`);
+      
+      if (!modellMessage || modellMessage.trim().length === 0) {
+        console.error('❌ ERROR: modellMessage is empty!');
+        throw new Error('Modell message is empty');
+      }
       
       res.json({
         bot_response: modellMessage,
         bot_response_2: "EMPTY_RESPONSE",
         bot_response_3: "EMPTY_RESPONSE"
       });
+      
+      console.log('✅ Response sent successfully');
           
       await saveMessage(contact_id, user_name, 'user', user_message).catch(err => {
         console.error('Failed to save user message:', err.message);
