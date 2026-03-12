@@ -394,7 +394,20 @@ function hasModellKeyword(text) {
     return false;
   }
   
-  const keywords = ['modell', 'model', 'azubi', 'auzubi', 'übung', 'training', 'schulung', '15euro', '15 euro', '15 €', '15€'];
+  const keywords = [
+    'modell', 'model', 'azubi', 'auzubi', 'übung', 'training', 'schulung',
+    '15euro', '15 euro', '15 €', '15€',
+    'mẫu', 'học viên', 'khách mẫu', 'thực hành', 'luyện tập'
+  ];
+  
+  // Special Vietnamese patterns
+  if (lower.includes('đăng ký') && (lower.includes('mẫu') || lower.includes('học viên'))) {
+    return true;
+  }
+  if (lower.includes('làm khách mẫu') || lower.includes('coi mình là khách')) {
+    return true;
+  }
+  
   return keywords.some(k => lower.includes(k));
 }
 
@@ -420,10 +433,12 @@ async function classifyCustomerIntent(userMessage, history) {
           content: `Du bist ein Intent-Classifier für ein Nagelstudio.
 
 Klassifiziere als "MODELLKUNDE" NUR wenn der Kunde EXPLIZIT erwähnt:
-- "modell" / "model" / "mẫu"
+- "modell" / "model" / "mẫu" / "khách mẫu"
 - "azubi" / "auszubildende" / "học viên" / "trainee" / "student"
 - "15€" / "15 euro" / "cheap" / "günstig" / "rẻ"
 - "training" / "übung" / "practice" / "thực hành" / "luyện tập"
+- "đăng ký làm khách" / "làm khách mẫu" / "coi mình là khách"
+- "đăng ký" + "mẫu" / "học viên" in same message
 - Oder FRAGT EXPLIZIT nach billigeren/Anfänger-Preisen
 
 Klassifiziere als "NORMAL" wenn:
@@ -660,24 +675,26 @@ function isModellkundeAcceptanceWithBooking(userMessage, history) {
   
   console.log('✓ Customer HAS received modell info');
   
-  // Check if customer is accepting and trying to book
+  // Check if customer is giving datetime (implies booking attempt)
   const lower = userMessage.toLowerCase().trim();
   
-  // Acceptance keywords
+  // DateTime keywords - expanded to include "day after tomorrow"
+  const hasDateTime = /\d{1,2}(h|:|pm|am|uhr|giờ)|\b(morgen|tomorrow|today|heute|ngày mai|hôm nay|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag|monday|tuesday|wednesday|thursday|friday|saturday|sunday|thứ hai|thứ ba|thứ tư|thứ năm|thứ sáu|thứ bảy|chủ nhật|day after tomorrow|übermorgen|ngày kia)\b/i.test(userMessage);
+  
+  // Acceptance keywords (optional if datetime is given)
   const acceptanceKeywords = ['ok', 'okay', 'ja', 'yes', 'passt', 'agree', 'được', 'vâng', 'fine', 'sure'];
   const hasAcceptance = acceptanceKeywords.some(k => lower.includes(k));
   
-  // DateTime keywords
-  const hasDateTime = /\d{1,2}(h|:|pm|am|uhr|giờ)|\b(morgen|tomorrow|today|heute|ngày mai|hôm nay|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag|monday|tuesday|wednesday|thursday|friday|saturday|sunday|thứ hai|thứ ba|thứ tư|thứ năm|thứ sáu|thứ bảy|chủ nhật)\b/i.test(userMessage);
-  
   console.log(`  hasAcceptance: ${hasAcceptance}, hasDateTime: ${hasDateTime}`);
   
-  const result = hasAcceptance && hasDateTime;
+  // If customer has received modell info and gives datetime → treat as booking attempt
+  // Acceptance is optional (giving datetime after modell info implies acceptance)
+  const result = hasDateTime;  // Just need datetime!
   
   if (result) {
-    console.log('✓ Modellkunde customer is accepting + booking → SEND BOOKING LINK');
+    console.log('✓ Modellkunde customer giving datetime → SEND BOOKING LINK');
   } else {
-    console.log('✗ Not a booking attempt (missing acceptance or datetime)');
+    console.log('✗ Not a booking attempt (no datetime given)');
   }
   
   return result;
@@ -1062,9 +1079,11 @@ app.post('/chat', async (req, res) => {
         
         // Strong signals for Vietnamese
         const vietnameseSignals = [
-          'xin chào', 'chào', 'cảm ơn', 'tôi muốn', 'bạn', 'được không', 'bảng giá',
+          'xin chào', 'chào', 'cảm ơn', 'tôi muốn', 'mình muốn', 'bạn', 'được không', 'bảng giá',
           'thứ hai', 'thứ ba', 'thứ tư', 'thứ năm', 'thứ sáu', 'thứ bảy', 'chủ nhật',
-          'khách thường', 'làm móng', 'đặt lịch', 'ngày mai', 'hôm nay'
+          'khách thường', 'làm móng', 'đặt lịch', 'ngày mai', 'hôm nay', 'chi tiết',
+          'mình', 'đăng ký', 'khách hàng', 'khách mẫu', 'học viên', 'giá', 'bao nhiêu',
+          'được', 'không', 'thế nào', 'làm', 'có thể'
         ];
         
         // Strong signals for English
