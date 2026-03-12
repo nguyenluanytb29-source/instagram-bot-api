@@ -400,6 +400,14 @@ function hasModellKeyword(text) {
 
 async function classifyCustomerIntent(userMessage, history) {
   try {
+    // Quick rejection for obvious non-modell queries  
+    const lower = userMessage.toLowerCase().trim();
+    const greetingsOnly = ['xin chào', 'hello', 'hi', 'guten tag', 'hallo', 'chào', 'hey', 'good morning', 'good afternoon'];
+    if (greetingsOnly.includes(lower)) {
+      console.log('✗ Just a greeting, not modellkunde');
+      return false;
+    }
+    
     const historyContext = history.slice(-5).map(msg => 
       `[${msg.role}]: ${msg.message}`
     ).join('\n');
@@ -410,17 +418,25 @@ async function classifyCustomerIntent(userMessage, history) {
         {
           role: 'system',
           content: `Du bist ein Intent-Classifier für ein Nagelstudio.
-Analysiere die GESAMTE Nachricht und den Kontext, nicht nur einzelne Keywords.
 
-Klassifiziere als "MODELLKUNDE" wenn:
-- Inhalt handelt von Schülern/Azubis/Training/Übung/15 Euro
-- ODER Nachricht fragt nach günstigen Preisen/Anfänger-Service
-- AUCH OHNE direkte Keywords, wenn der Gesamtkontext darauf hindeutet
+Klassifiziere als "MODELLKUNDE" NUR wenn der Kunde EXPLIZIT erwähnt:
+- "modell" / "model" / "mẫu"
+- "azubi" / "auszubildende" / "học viên" / "trainee" / "student"
+- "15€" / "15 euro" / "cheap" / "günstig" / "rẻ"
+- "training" / "übung" / "practice" / "thực hành" / "luyện tập"
+- Oder FRAGT EXPLIZIT nach billigeren/Anfänger-Preisen
 
 Klassifiziere als "NORMAL" wenn:
-- Normale Terminanfrage
+- NUR Begrüßung ("xin chào", "hello", "guten tag") OHNE weitere Info
+- Normale Terminanfrage OHNE Modell-Bezug
 - Frage nach regulären Services/Preisen
-- Kein Bezug zu Schülern/Training
+- Kein expliziter Bezug zu Schülern/Training/Modell
+- "ok ngày mai 18h" NACH Modell-Info = Kunde akzeptiert → NORMAL (nicht nochmal MODELLKUNDE!)
+
+🔴 KRITISCH:
+- "xin chào" allein = NORMAL
+- "hello" allein = NORMAL
+- "ok ngày mai 18h" nach bereits gesendeter Modell-Info = NORMAL (Customer booking)
 
 Antworte NUR mit: MODELLKUNDE oder NORMAL`
         },
@@ -430,11 +446,11 @@ Antworte NUR mit: MODELLKUNDE oder NORMAL`
         }
       ],
       max_tokens: 10,
-      temperature: 0.1
+      temperature: 0
     });
 
     const intent = classification.choices[0].message.content.trim().toUpperCase();
-    console.log(`🎯 Intent classification: ${intent}`);
+    console.log(`🎯 Intent classification: ${intent} (message: "${userMessage}")`);
     return intent === 'MODELLKUNDE';
   } catch (error) {
     console.error('❌ Intent classification error:', error);
@@ -585,6 +601,38 @@ async function isModellkundeConversation(userMessage, history) {
   
   console.log('✓ First time Modell - WILL send info');
   return true;
+}
+
+function isModellkundeAcceptanceWithBooking(userMessage, history) {
+  // Check if this is a modellkunde customer (already received modell info)
+  const hasReceivedModellInfo = history.some(msg => 
+    msg.role === 'assistant' && 
+    (msg.message.includes('Wir freuen uns sehr') || 
+     msg.message.includes('We are delighted') ||
+     msg.message.includes('Chúng tôi rất vui'))
+  );
+  
+  if (!hasReceivedModellInfo) {
+    return false; // Not a modellkunde customer yet
+  }
+  
+  // Check if customer is accepting and trying to book
+  const lower = userMessage.toLowerCase().trim();
+  
+  // Acceptance keywords
+  const acceptanceKeywords = ['ok', 'okay', 'ja', 'yes', 'passt', 'agree', 'được', 'vâng', 'fine', 'sure'];
+  const hasAcceptance = acceptanceKeywords.some(k => lower.includes(k));
+  
+  // DateTime keywords
+  const hasDateTime = /\d{1,2}(h|:|pm|am|uhr|giờ)|\b(morgen|tomorrow|today|heute|ngày mai|hôm nay|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag|monday|tuesday|wednesday|thursday|friday|saturday|sunday|thứ hai|thứ ba|thứ tư|thứ năm|thứ sáu|thứ bảy|chủ nhật)\b/i.test(userMessage);
+  
+  const result = hasAcceptance && hasDateTime;
+  
+  if (result) {
+    console.log('✓ Modellkunde customer is accepting + booking');
+  }
+  
+  return result;
 }
 
 async function isStaffTakeover(contactId) {
@@ -957,6 +1005,45 @@ Greet and answer in ${detectedLangName}.`;
     
     let aiResponse = completion.choices[0].message.content;
     console.log(`🤖 AI response (original): ${aiResponse.substring(0, 100)}...`);
+    
+    // Check if this is a modellkunde customer trying to book (acceptance + datetime)
+    const isModellBooking = isModellkundeAcceptanceWithBooking(user_message, history);
+    
+    if (isModellBooking) {
+      console.log('🎯 Modellkunde customer is booking - sending booking link');
+      
+      let bookingMessage;
+      if (userLang === 'vi') {
+        bookingMessage = MODELL_BOOKING_MESSAGE_VI;
+      } else if (userLang === 'en') {
+        bookingMessage = MODELL_BOOKING_MESSAGE_EN;
+      } else {
+        bookingMessage = MODELL_BOOKING_MESSAGE;
+      }
+      
+      console.log(`📝 Sending Modell booking message (${userLang})`);
+      
+      res.json({
+        bot_response: bookingMessage,
+        bot_response_2: "EMPTY_RESPONSE",
+        bot_response_3: "EMPTY_RESPONSE"
+      });
+          
+      await saveMessage(contact_id, user_name, 'user', user_message).catch(err => {
+        console.error('Failed to save user message:', err.message);
+      });
+      await saveMessage(contact_id, user_name, 'assistant', bookingMessage).catch(err => {
+        console.error('Failed to save assistant message:', err.message);
+      });
+
+      getChatHistory(contact_id).then(updatedHistory => {
+        updateConversationSummary(contact_id, user_name, updatedHistory).catch(err => {
+          console.error('Failed to update summary:', err.message);
+        });
+      });
+      
+      return;
+    }
     
     const shouldSendModellInfo = await isModellkundeConversation(user_message, history);
 
