@@ -58,15 +58,34 @@ WENN Chat History LEER ist:
   - Englisch: "Hello! Welcome to Nailounge101 Berlin. How can I help you?"
   - Vietnamesisch: "Xin chào! Chào mừng đến Nailounge101 Berlin. Tôi có thể giúp gì?"
 
-MODELLKUNDEN - TERMIN BUCHEN:
-Wenn MODELLKUNDE "ja" oder "in Ordnung" oder "ok" antwortet (= akzeptiert die Bedingungen):
-→ Gib den Buchungslink in der Sprache des Kunden:
-  - Deutsch: "Perfekt! Bitte buchen Sie hier: [LINK]"
-  - Englisch: "Perfect! Please book here: [LINK]"
-  - Vietnamesisch: "Hoàn hảo! Vui lòng đặt lịch tại đây: [LINK]"
-→ Link: https://nailounge101.setmore.com/book?step=time-slot&products=d8f1cdd3-ca6f-42b7-8f2a-fbbb64cbcd2d&type=service&staff=jeeZoVSakEm9KfPuHaC7ZwfaPN9CKI1R&staffSelected=true
+MODELLKUNDEN - BUCHUNGS-FLOW (3 SCHRITTE):
 
-BUCHUNG (NORMALE KUNDEN):
+🔴 SCHRITT 1 - MODELLKUNDE INFO SENDEN:
+Wenn Kunde MODELLKUNDE ist (fragt nach modell/azubi/15€):
+→ Sende die Modellkunden-Info (siehe unten - wird automatisch eingefügt)
+→ Diese Info wird NUR 1 MAL gesendet
+
+🔴 SCHRITT 2 - KUNDE AKZEPTIERT:
+Wenn MODELLKUNDE "ja" / "ok" / "in Ordnung" / "passt" / "agree" / "được" antwortet:
+→ Sende SOFORT den Buchungslink mit Vorauszahlungs-Info
+→ Deutsch: [MODELL_BOOKING_MESSAGE wird automatisch eingefügt]
+→ Englisch: [MODELL_BOOKING_MESSAGE_EN wird automatisch eingefügt]  
+→ Vietnamesisch: [MODELL_BOOKING_MESSAGE_VI wird automatisch eingefügt]
+
+🔴 SCHRITT 3 - FRAGE ZU VORAUSZAHLUNG:
+Wenn MODELLKUNDE fragt "Warum Vorauszahlung?" / "Why prepay?" / "Tại sao phải trả trước?":
+→ Deutsch: [MODELL_PREPAYMENT_REASON wird automatisch eingefügt]
+→ Englisch: [MODELL_PREPAYMENT_REASON_EN wird automatisch eingefügt]
+→ Vietnamesisch: [MODELL_PREPAYMENT_REASON_VI wird automatisch eingefügt]
+
+⚠️ WICHTIG FÜR MODELLKUNDEN:
+- Modellkunden buchen IMMER über den speziellen Link: https://nailounge101.setmore.com/team/jeeZoVSakEm9KfPuHaC7ZwfaPN9CKI1R
+- NIEMALS sagen "Mitarbeiter prüfen" für Modellkunden
+- NIEMALS normales Setmore Link geben (https://nailounge101.setmore.com/)
+- Modellkunden müssen ONLINE buchen und VORAUSZAHLEN
+- Wenn Modellkunde Tag+Zeit nennt → Trotzdem Link senden (NICHT "Mitarbeiter prüfen")
+
+BUCHUNG (NORMALE KUNDEN - NICHT MODELLKUNDEN):
 🔴🔴🔴 KRITISCH - ÖFFNUNGSZEITEN 🔴🔴🔴
 
 MONTAG - FREITAG: 09:30 bis 19:00 Uhr
@@ -79,7 +98,7 @@ SONNTAG: Geschlossen
 - "Samstag 15h" = OK
 - IMMER prüfen ob Tag = Samstag → dann 16:00 statt 19:00
 
-🔗 TERMIN-ANFRAGE - ZWEI FÄLLE:
+🔗 TERMIN-ANFRAGE - ZWEI FÄLLE (NUR FÜR NORMALE KUNDEN):
 
 FALL A: Kunde nennt DIREKT Tag + Uhrzeit in erster Nachricht
 Beispiele: "Ich möchte morgen um 15h", "Can I book tomorrow 3pm", "Tôi muốn đặt ngày mai 3h chiều"
@@ -93,10 +112,9 @@ Beispiele: "Ich möchte einen Termin", "Can I book?", "Tôi muốn đặt lịch
   - Englisch: "Sure! Online: https://nailounge101.setmore.com/ Or tell me day and time, I'll help!"
   - Vietnamesisch: "Được! Đặt online: https://nailounge101.setmore.com/ Hoặc cho biết ngày giờ, tôi sẽ hỗ trợ!"
 
-⚠️ AUSNAHME - MODELLKUNDEN:
-Wenn Kunde ein MODELLKUNDE ist (hat schon die Modell-Info bekommen):
-→ KEIN normales Setmore Link geben
-→ Nur nach Akzeptanz den speziellen Modellkunden-Link geben (siehe oben)
+⚠️ KRITISCH - UNTERSCHIED MODELL vs NORMAL:
+- MODELLKUNDEN: Immer Link senden (auch wenn Tag+Zeit genannt) → https://nailounge101.setmore.com/team/...
+- NORMALE KUNDEN: Wenn Tag+Zeit → KEIN Link, nur "Mitarbeiter prüfen"
 
 ⚠️ KRITISCH:
 - NORMALE KUNDEN: IMMER Link geben (außer Fall A mit direkter Zeit)
@@ -201,47 +219,171 @@ WICHTIG:
 - Keine Wiederholungen
 - Zeit NIEMALS ändern (18h bleibt 18h!)`;
 
-const MODELL_MESSAGE = `Guten Tag!
-Wir freuen uns sehr, dass Sie sich für unsere Dienstleistungen interessieren.
-Momentan nehmen wir noch Kunden für unsere Schüler an.
-Der Preis für die Nägel hängt vom Design ab:
-Wenn Sie Natur klar wünschen, beträgt der Preis 15 €.
-Wenn Sie Natur Make-up, French, Farbe, Glitzer, Ombre oder Katzenaugen möchten, kostet es 20 €.
-Für aufwendigere Designs berechnen wir zusätzlich 1 € pro Design-Nagel,
-und jede Steinchen kostet 0,50 €.
-Unsere Schüler können jedoch möglicherweise sehr komplizierte Muster nicht umsetzen.
-Die Behandlungszeit beträgt in der Regel etwa 2 bis 3 Stunden,
-und das Ergebnis kann möglicherweise nicht perfekt sein — wir möchten Sie im Voraus darüber informieren, damit Sie Bescheid wissen.
-Außerdem bieten wir eine Nachbesserung innerhalb von 3 Tagen an.
-Ist das für Sie in Ordnung? 💅`;
+const MODELL_MESSAGE = `Guten Tag! 😊
+Vielen Dank für Ihr Interesse an unseren Dienstleistungen.
+Zurzeit suchen wir noch Modelle für unsere Schüler.
 
-const MODELL_MESSAGE_EN = `Hello!
-We are delighted that you are interested in our services.
-We are currently accepting customers for our students.
-The price for nails depends on the design:
-If you want natural clear, the price is 15 €.
-If you want natural makeup, French, color, glitter, ombre or cat eye, it costs 20 €.
-For more elaborate designs we charge an additional 1 € per design nail,
-and each rhinestone costs 0.50 €.
-However, our students may not be able to implement very complicated patterns.
-The treatment time is usually about 2 to 3 hours,
-and the result may not be perfect — we want to inform you in advance so you know.
-We also offer touch-ups within 3 days.
-Is that okay with you? 💅`;
+Der Preis richtet sich nach dem Design:
+• Natur (klar): 15 €
+• Natur Make-up, French, Farbe, Glitzer, Ombre oder Cat-Eye: 20 €
 
-const MODELL_MESSAGE_VI = `Xin chào!
-Chúng tôi rất vui vì bạn quan tâm đến dịch vụ của chúng tôi.
-Hiện tại chúng tôi đang nhận khách cho học viên của mình.
-Giá làm móng phụ thuộc vào thiết kế:
-Nếu bạn muốn tự nhiên trong suốt, giá là 15 €.
-Nếu bạn muốn tự nhiên makeup, French, màu, glitter, ombre hoặc mắt mèo, giá là 20 €.
-Đối với thiết kế phức tạp hơn, chúng tôi tính thêm 1 € cho mỗi móng thiết kế,
-và mỗi viên đá giá 0,50 €.
-Tuy nhiên, học viên của chúng tôi có thể không thực hiện được những mẫu quá phức tạp.
-Thời gian thực hiện thường khoảng 2 đến 3 giờ,
-và kết quả có thể không hoàn hảo — chúng tôi muốn thông báo trước để bạn biết.
-Chúng tôi cũng cung cấp dịch vụ chỉnh sửa trong vòng 3 ngày.
-Bạn đồng ý chứ? 💅`;
+Für aufwendigere Designs berechnen wir zusätzlich:
+• 1 € pro Design-Nagel
+• 0,50 € pro Steinchen
+
+Bitte beachten Sie:
+Da die Behandlung von einem Schüler durchgeführt wird, kann es sein, dass sehr komplizierte Designs nicht möglich sind.
+
+Die Behandlungszeit beträgt normalerweise etwa 2–3 Stunden.
+Das Ergebnis ist eventuell nicht perfekt, da es sich um eine Übung handelt – wir möchten Sie darüber im Voraus informieren.
+
+Falls etwas nicht zufriedenstellend ist, bieten wir innerhalb von 3 Tagen eine kostenlose Nachbesserung an.
+
+Wäre das für Sie in Ordnung? 💅
+
+Wenn alles für Sie passt, können wir gerne einen Termin vereinbaren.`;
+
+const MODELL_MESSAGE_EN = `Hello! 😊
+Thank you for your interest in our services.
+We are currently looking for models for our students.
+
+The price depends on the design:
+• Natural (clear): 15 €
+• Natural makeup, French, color, glitter, ombre or cat-eye: 20 €
+
+For more elaborate designs, we charge additionally:
+• 1 € per design nail
+• 0.50 € per rhinestone
+
+Please note:
+Since the treatment is performed by a student, very complicated designs may not be possible.
+
+The treatment time is usually about 2–3 hours.
+The result may not be perfect as this is practice – we want to inform you in advance.
+
+If something is not satisfactory, we offer a free touch-up within 3 days.
+
+Would that be okay with you? 💅
+
+If everything is suitable for you, we would be happy to arrange an appointment.`;
+
+const MODELL_MESSAGE_VI = `Xin chào! 😊
+Cảm ơn bạn đã quan tâm đến dịch vụ của chúng tôi.
+Hiện tại chúng tôi đang tìm khách mẫu cho học viên.
+
+Giá phụ thuộc vào thiết kế:
+• Tự nhiên (trong suốt): 15 €
+• Tự nhiên makeup, French, màu, glitter, ombre hoặc mắt mèo: 20 €
+
+Đối với thiết kế phức tạp hơn, chúng tôi tính thêm:
+• 1 € cho mỗi móng thiết kế
+• 0,50 € cho mỗi viên đá
+
+Lưu ý:
+Do học viên thực hiện, các thiết kế quá phức tạp có thể không thực hiện được.
+
+Thời gian thực hiện thường khoảng 2–3 giờ.
+Kết quả có thể không hoàn hảo vì đây là buổi thực hành – chúng tôi muốn thông báo trước.
+
+Nếu có gì chưa hài lòng, chúng tôi cung cấp dịch vụ sửa miễn phí trong vòng 3 ngày.
+
+Bạn đồng ý chứ? 💅
+
+Nếu mọi thứ phù hợp với bạn, chúng tôi rất vui được sắp xếp lịch hẹn.`;
+
+const MODELL_BOOKING_MESSAGE = `Super, das freut uns sehr! 😊
+
+Da wir nur wenige Modellplätze haben, empfehlen wir Ihnen, den Termin direkt online zu buchen.
+
+Hier können Sie Ihren Termin reservieren:
+https://nailounge101.setmore.com/team/jeeZoVSakEm9KfPuHaC7ZwfaPN9CKI1R
+
+Modell-Termine werden ausschließlich online gebucht und müssen im Voraus bezahlt werden, damit der Termin verbindlich für Sie reserviert ist.
+
+Ohne Vorauszahlung kann der Termin leider nicht reserviert werden.
+Nur vollständig bezahlte Termine werden bestätigt.
+
+Bitte beachten Sie:
+• Terminbuchung nur online möglich.
+• Vorauszahlung ist erforderlich, um den Termin verbindlich zu reservieren.
+
+Stornierungsbedingungen:
+Wenn Sie nicht zum Termin erscheinen oder weniger als 24 Stunden vorher absagen, ist eine Rückerstattung leider nicht möglich.
+
+Die Plätze für Modelle sind begrenzt und oft schnell vergeben.
+
+Wir freuen uns auf Ihren Besuch bei Nailounge101! 💅`;
+
+const MODELL_BOOKING_MESSAGE_EN = `Super, we are very happy! 😊
+
+Since we only have a few model spots available, we recommend booking your appointment directly online.
+
+You can reserve your appointment here:
+https://nailounge101.setmore.com/team/jeeZoVSakEm9KfPuHaC7ZwfaPN9CKI1R
+
+Model appointments are exclusively booked online and must be paid in advance to ensure your appointment is reserved for you.
+
+Without advance payment, the appointment cannot be reserved.
+Only fully paid appointments will be confirmed.
+
+Please note:
+• Appointment booking only possible online.
+• Advance payment is required to reserve your appointment.
+
+Cancellation policy:
+If you do not show up for the appointment or cancel less than 24 hours in advance, unfortunately no refund is possible.
+
+Model spots are limited and often fill up quickly.
+
+We look forward to your visit at Nailounge101! 💅`;
+
+const MODELL_BOOKING_MESSAGE_VI = `Tuyệt vời, chúng tôi rất vui! 😊
+
+Do chúng tôi chỉ có ít chỗ cho khách mẫu, chúng tôi khuyên bạn nên đặt lịch trực tuyến.
+
+Bạn có thể đặt lịch tại đây:
+https://nailounge101.setmore.com/team/jeeZoVSakEm9KfPuHaC7ZwfaPN9CKI1R
+
+Lịch hẹn khách mẫu chỉ được đặt trực tuyến và phải thanh toán trước để đảm bảo lịch hẹn được giữ cho bạn.
+
+Không có thanh toán trước, lịch hẹn không thể được giữ chỗ.
+Chỉ các lịch hẹn đã thanh toán đầy đủ mới được xác nhận.
+
+Lưu ý:
+• Đặt lịch chỉ có thể thực hiện trực tuyến.
+• Thanh toán trước là bắt buộc để giữ chỗ lịch hẹn.
+
+Chính sách hủy:
+Nếu bạn không đến hoặc hủy ít hơn 24 giờ trước, rất tiếc chúng tôi không thể hoàn tiền.
+
+Số chỗ cho khách mẫu có hạn và thường nhanh chóng hết chỗ.
+
+Chúng tôi mong được gặp bạn tại Nailounge101! 💅`;
+
+const MODELL_PREPAYMENT_REASON = `Wir bitten um Vorauszahlung, da Modell-Termine sehr lange dauern (ca. 2–3 Stunden) und wir nur wenige Plätze für unsere Schüler haben.
+
+So können wir sicherstellen, dass der Termin wirklich für Sie reserviert ist.
+
+Vielen Dank für Ihr Verständnis! 😊
+
+Leider hatten wir in der Vergangenheit viele Termin-Ausfälle, daher ist die Vorauszahlung für Modell-Termine notwendig.`;
+
+const MODELL_PREPAYMENT_REASON_EN = `We ask for advance payment because model appointments take a very long time (approx. 2–3 hours) and we only have a few spots for our students.
+
+This way we can ensure that the appointment is really reserved for you.
+
+Thank you for your understanding! 😊
+
+Unfortunately, we have had many appointment cancellations in the past, so advance payment for model appointments is necessary.`;
+
+const MODELL_PREPAYMENT_REASON_VI = `Chúng tôi yêu cầu thanh toán trước vì lịch hẹn khách mẫu rất lâu (khoảng 2–3 giờ) và chúng tôi chỉ có ít chỗ cho học viên.
+
+Điều này đảm bảo lịch hẹn thực sự được giữ cho bạn.
+
+Cảm ơn sự thông cảm của bạn! 😊
+
+Rất tiếc, chúng tôi đã có nhiều trường hợp hủy lịch, vì vậy thanh toán trước là cần thiết cho lịch hẹn khách mẫu.`;
+
 
 function hasModellKeyword(text) {
   if (!text) return false;
@@ -326,20 +468,23 @@ async function detectLanguageWithAI(userMessage, conversationHistory) {
       messages: [
         {
           role: 'system',
-          content: `You are a language detector. Analyze ONLY the customer's messages to determine what language they are using.
+          content: `You are a language detector. Analyze ONLY the customer's messages to determine their PRIMARY communication language.
 
 CRITICAL RULES:
 1. Look ONLY at the customer's messages, IGNORE bot responses
-2. Determine the language the CUSTOMER has been consistently using
-3. If customer wrote "I want appointment Sunday 5pm" → ENGLISH
-4. If customer then writes "ja ok Saturday 2pm" → Still ENGLISH (customer's language)
-5. "ja" is just a filler word, the sentence structure is English
-6. Focus on the dominant language in the customer's message history
+2. Determine the DOMINANT language the customer has been using
+3. Mixed language examples:
+   - "ja ok Saturday 2pm" → Look at previous messages
+   - If previous: "I want Sunday 5pm" → Customer is using ENGLISH (just borrowed "ja")
+   - If previous: "Ich möchte Sonntag" → Customer is using GERMAN
+4. Day names matter: "Saturday" = English, "Samstag" = German, "Thứ bảy" = Vietnamese
+5. Filler words "ok", "ja", "yes" alone don't determine language
+6. Analyze sentence structure and day/time words more than fillers
 
 Respond with ONLY ONE WORD:
-- "vietnamese" if the customer is using Vietnamese
-- "english" if the customer is using English  
-- "german" if the customer is using German
+- "vietnamese" if the customer is primarily using Vietnamese
+- "english" if the customer is primarily using English  
+- "german" if the customer is primarily using German
 
 DO NOT include any explanation. Just the language name.`
         },
@@ -354,7 +499,7 @@ DO NOT include any explanation. Just the language name.`
     
     const detected = completion.choices[0].message.content.trim().toLowerCase();
     console.log(`🤖 AI language detection: ${detected}`);
-    console.log(`📝 Context analyzed: ${context.substring(0, 200)}...`);
+    console.log(`📝 Context analyzed (user messages only):\n${context.substring(0, 300)}...`);
     
     if (detected.includes('vietnamese') || detected.includes('vi')) return 'vi';
     if (detected.includes('english') || detected.includes('en')) return 'en';
@@ -685,7 +830,51 @@ app.post('/chat', async (req, res) => {
     });
     const dateContext = `🕐 AKTUELLES DATUM & UHRZEIT (Berlin): ${berlinTime}\n`;
     
-    // Use AI to detect language based on entire conversation context
+    // STEP 1: Summarize user intent using AI
+    console.log('📝 Step 1: Summarizing user intent...');
+    let userIntentSummary = '';
+    try {
+      const intentCompletion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `You are an AI assistant that summarizes customer messages for a nail salon.
+
+Analyze the customer's message and provide a brief summary of:
+1. What the customer wants (appointment, price info, model customer, question, etc.)
+2. Any specific details (day, time, service type)
+3. Customer's sentiment (polite, urgent, confused, etc.)
+
+Keep it under 50 words. Be concise and factual.
+
+Example:
+Input: "tôi muốn đặt lịch chủ nhật 17h"
+Output: "Customer wants appointment on Sunday at 5pm (17h). Vietnamese speaker."
+
+Input: "modell preis"
+Output: "Customer asking about model customer prices. German speaker."
+
+Input: "ja ok Saturday 2pm"
+Output: "Customer agrees and suggests Saturday 2pm. Confirmation message."`
+          },
+          {
+            role: 'user',
+            content: `Customer message: "${user_message}"\n\nRecent conversation context:\n${historyText.substring(historyText.length - 500)}`
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 100
+      });
+      
+      userIntentSummary = intentCompletion.choices[0].message.content.trim();
+      console.log(`📝 User intent summary: ${userIntentSummary}`);
+    } catch (error) {
+      console.error('❌ Intent summarization error:', error);
+      userIntentSummary = `Customer says: "${user_message}"`;
+    }
+    
+    // STEP 2: Detect language based on conversation context
     const userLang = await detectLanguageWithAI(user_message, history);
     console.log(`🌍 AI-detected language: ${userLang} (message: "${user_message}")`);
 
@@ -704,6 +893,8 @@ ${historyText}
 ---
 
 CURRENT MESSAGE: ${user_message}
+
+📝 INTENT SUMMARY: ${userIntentSummary}
 
 ---
 
@@ -733,6 +924,8 @@ ${historyText}
 ---
 
 CURRENT MESSAGE: ${user_message}
+
+📝 INTENT SUMMARY: ${userIntentSummary}
 
 ---
 
