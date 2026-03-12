@@ -548,6 +548,26 @@ function detectLanguage(text) {
   return 'en';
 }
 
+function customerWantsNormalBooking(userMessage) {
+  const lower = userMessage.toLowerCase().trim();
+  
+  const normalKeywords = [
+    'khách thường',
+    'không phải khách mẫu',
+    'không phải modell',
+    'normal customer',
+    'not model',
+    'not modell',
+    'regulär',
+    'normaler kunde',
+    'nicht modell',
+    'đặt lịch bình thường',
+    'đặt lịch như khách thường'
+  ];
+  
+  return normalKeywords.some(k => lower.includes(k));
+}
+
 async function isModellkundeConversation(userMessage, history) {
   const isModell = await classifyCustomerIntent(userMessage, history);
   
@@ -691,16 +711,77 @@ async function initDB() {
       contact_id VARCHAR(255) UNIQUE NOT NULL,
       user_name VARCHAR(255),
       summary TEXT NOT NULL,
+      customer_type VARCHAR(20),
+      preferred_language VARCHAR(5),
       last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
+  `;
+  
+  // Add columns if they don't exist (for existing databases)
+  const alterTableQuery = `
+    DO $$ 
+    BEGIN
+      BEGIN
+        ALTER TABLE conversation_summary ADD COLUMN customer_type VARCHAR(20);
+      EXCEPTION
+        WHEN duplicate_column THEN NULL;
+      END;
+      BEGIN
+        ALTER TABLE conversation_summary ADD COLUMN preferred_language VARCHAR(5);
+      EXCEPTION
+        WHEN duplicate_column THEN NULL;
+      END;
+    END $$;
   `;
   
   try {
     await pool.query(createTableQuery);
     await pool.query(createSummaryTableQuery);
-    console.log('✅ Database initialized');
+    await pool.query(alterTableQuery);
+    console.log('✅ Database initialized with customer_type and preferred_language columns');
   } catch (error) {
     console.error('❌ Database init error:', error);
+  }
+}
+
+async function getCustomerState(contactId) {
+  const query = `
+    SELECT customer_type, preferred_language
+    FROM conversation_summary
+    WHERE contact_id = $1
+  `;
+  
+  try {
+    const result = await pool.query(query, [contactId]);
+    if (result.rows.length > 0) {
+      return {
+        customerType: result.rows[0].customer_type,
+        preferredLanguage: result.rows[0].preferred_language
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error('❌ Get customer state error:', error);
+    return null;
+  }
+}
+
+async function updateCustomerState(contactId, userName, customerType, preferredLanguage) {
+  const query = `
+    INSERT INTO conversation_summary (contact_id, user_name, summary, customer_type, preferred_language, last_updated)
+    VALUES ($1, $2, 'New customer', $3, $4, NOW())
+    ON CONFLICT (contact_id) 
+    DO UPDATE SET 
+      customer_type = $3,
+      preferred_language = $4,
+      last_updated = NOW()
+  `;
+  
+  try {
+    await pool.query(query, [contactId, userName, customerType, preferredLanguage]);
+    console.log(`✅ Updated customer state: type=${customerType}, lang=${preferredLanguage}`);
+  } catch (error) {
+    console.error('❌ Update customer state error:', error);
   }
 }
 
@@ -848,6 +929,64 @@ app.post('/chat', async (req, res) => {
     const historyText = formatHistory(history);
     
     console.log(`📚 Found ${history.length} previous messages`);
+    
+    // ========== CUSTOMER STATE MANAGEMENT ==========
+    console.log('\n💾 === CUSTOMER STATE MANAGEMENT ===');
+    
+    // 1. Get saved customer state from DB
+    let customerState = await getCustomerState(contact_id);
+    let customerType = customerState?.customerType || null;
+    let userLang = customerState?.preferredLanguage || null;
+    
+    console.log(`📖 Saved state from DB: type=${customerType || 'NULL'}, lang=${userLang || 'NULL'}`);
+    
+    // 2. Check if customer wants to switch to NORMAL
+    if (customerWantsNormalBooking(user_message)) {
+      console.log('🔄 Customer requesting NORMAL booking - switching type to NORMAL');
+      customerType = 'normal';
+      await updateCustomerState(contact_id, user_name, 'normal', userLang);
+    }
+    
+    // 3. Detect/Update language
+    if (!userLang) {
+      // First time - detect language
+      userLang = await detectLanguageWithAI(user_message, history);
+      console.log(`🌍 First-time language detection: ${userLang}`);
+      await updateCustomerState(contact_id, user_name, customerType, userLang);
+    } else {
+      // Check if user switched language (strong signal required)
+      const currentMsgLang = detectLanguage(user_message);
+      if (currentMsgLang !== userLang) {
+        const englishDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+        const germanDays = ['montag', 'dienstag', 'mittwoch', 'donnerstag', 'freitag', 'samstag', 'sonntag'];
+        const vietnameseDays = ['thứ hai', 'thứ ba', 'thứ tư', 'thứ năm', 'thứ sáu', 'thứ bảy', 'chủ nhật'];
+        
+        const lower = user_message.toLowerCase();
+        const hasStrongSignal = 
+          (currentMsgLang === 'en' && englishDays.some(d => lower.includes(d))) ||
+          (currentMsgLang === 'de' && germanDays.some(d => lower.includes(d))) ||
+          (currentMsgLang === 'vi' && vietnameseDays.some(d => lower.includes(d)));
+        
+        if (hasStrongSignal) {
+          console.log(`🔄 Language switched: ${userLang} → ${currentMsgLang} (day name detected)`);
+          userLang = currentMsgLang;
+          await updateCustomerState(contact_id, user_name, customerType, userLang);
+        } else {
+          console.log(`  Language hint: ${currentMsgLang}, but keeping saved: ${userLang} (no strong signal)`);
+        }
+      }
+    }
+    
+    // 4. Determine customer type (if not set AND not explicitly normal)
+    if (!customerType) {
+      const isModell = await classifyCustomerIntent(user_message, history);
+      customerType = isModell ? 'modell' : 'normal';
+      console.log(`🎯 First-time customer type detection: ${customerType}`);
+      await updateCustomerState(contact_id, user_name, customerType, userLang);
+    }
+    
+    console.log(`✅ Final state: customerType=${customerType}, userLang=${userLang}`);
+    console.log('=== END CUSTOMER STATE ===\n');
 
     const existingSummary = await getConversationSummary(contact_id);
     let summaryContext = '';
@@ -927,9 +1066,8 @@ Output: "Customer agrees and suggests Saturday 2pm. Confirmation message."`
       userIntentSummary = `Customer says: "${user_message}"`;
     }
     
-    // STEP 2: Detect language based on conversation context
-    const userLang = await detectLanguageWithAI(user_message, history);
-    console.log(`🌍 AI-detected language: ${userLang} (message: "${user_message}")`);
+    // userLang already determined from customer state above
+    console.log(`🌍 Using language from state: ${userLang}`);
 
     const languageMap = {
       'vi': 'VIETNAMESE (Tiếng Việt)',
@@ -996,117 +1134,131 @@ Greet and answer in ${detectedLangName}.`;
       console.log(`  [${msg.role}]: ${msg.message.substring(0, 100)}...`);
     });
     
-    // ⚠️ CHECK MODELLKUNDE **BEFORE** CALLING AI
-    // If this is modellkunde-related, we don't need AI response at all!
+    // ========== CUSTOMER TYPE ROUTING ==========
+    console.log(`\n🎯 === ROUTING BY CUSTOMER TYPE: ${customerType} ===`);
     
-    console.log('\n🔍 Step 1: Checking if customer is booking (isModellkundeAcceptanceWithBooking)...');
-    // Check 1: Is customer trying to book (already modellkunde + acceptance + datetime)?
-    const isModellBooking = isModellkundeAcceptanceWithBooking(user_message, history);
-    console.log(`🔍 Result: isModellBooking = ${isModellBooking}\n`);
-    
-    if (isModellBooking) {
-      console.log('🎯 Modellkunde customer is booking - sending booking link');
+    if (customerType === 'modell') {
+      console.log('🎨 MODELL CUSTOMER FLOW');
       
-      let bookingMessage;
-      if (userLang === 'vi') {
-        bookingMessage = MODELL_BOOKING_MESSAGE_VI;
-      } else if (userLang === 'en') {
-        bookingMessage = MODELL_BOOKING_MESSAGE_EN;
-      } else {
-        bookingMessage = MODELL_BOOKING_MESSAGE;
+      // Check 1: Is customer trying to book (already modellkunde + acceptance + datetime)?
+      console.log('\n🔍 Step 1: Checking if customer is booking (isModellkundeAcceptanceWithBooking)...');
+      const isModellBooking = isModellkundeAcceptanceWithBooking(user_message, history);
+      console.log(`🔍 Result: isModellBooking = ${isModellBooking}\n`);
+      
+      if (isModellBooking) {
+        console.log('🎯 Modellkunde customer is booking - sending booking link');
+        
+        let bookingMessage;
+        if (userLang === 'vi') {
+          bookingMessage = MODELL_BOOKING_MESSAGE_VI;
+        } else if (userLang === 'en') {
+          bookingMessage = MODELL_BOOKING_MESSAGE_EN;
+        } else {
+          bookingMessage = MODELL_BOOKING_MESSAGE;
+        }
+        
+        console.log(`📝 Sending Modell booking message (${userLang})`);
+        
+        res.json({
+          bot_response: bookingMessage,
+          bot_response_2: "EMPTY_RESPONSE",
+          bot_response_3: "EMPTY_RESPONSE"
+        });
+            
+        await saveMessage(contact_id, user_name, 'user', user_message).catch(err => {
+          console.error('Failed to save user message:', err.message);
+        });
+        await saveMessage(contact_id, user_name, 'assistant', bookingMessage).catch(err => {
+          console.error('Failed to save assistant message:', err.message);
+        });
+
+        getChatHistory(contact_id).then(updatedHistory => {
+          updateConversationSummary(contact_id, user_name, updatedHistory).catch(err => {
+            console.error('Failed to update summary:', err.message);
+          });
+        });
+        
+        return; // EXIT - don't call AI
       }
       
-      console.log(`📝 Sending Modell booking message (${userLang})`);
-      
-      res.json({
-        bot_response: bookingMessage,
-        bot_response_2: "EMPTY_RESPONSE",
-        bot_response_3: "EMPTY_RESPONSE"
-      });
-          
-      await saveMessage(contact_id, user_name, 'user', user_message).catch(err => {
-        console.error('Failed to save user message:', err.message);
-      });
-      await saveMessage(contact_id, user_name, 'assistant', bookingMessage).catch(err => {
-        console.error('Failed to save assistant message:', err.message);
-      });
+      // Check 2: Is this first-time modellkunde query?
+      console.log('🔍 Step 2: Checking if should send modell info (isModellkundeConversation)...');
+      const shouldSendModellInfo = await isModellkundeConversation(user_message, history);
+      console.log(`🔍 Result: shouldSendModellInfo = ${shouldSendModellInfo}\n`);
 
-      getChatHistory(contact_id).then(updatedHistory => {
-        updateConversationSummary(contact_id, user_name, updatedHistory).catch(err => {
-          console.error('Failed to update summary:', err.message);
+      if (shouldSendModellInfo) {
+        console.log('✅ SENDING MODELL INFO - SKIP AI');
+        
+        const alreadyGreeted = history.some(msg => 
+          msg.role === 'assistant'
+        );
+        
+        console.log(`  alreadyGreeted: ${alreadyGreeted}`);
+        console.log(`  userLang: ${userLang}`);
+        
+        let modellMessage;
+        if (userLang === 'vi') {
+          modellMessage = MODELL_MESSAGE_VI;
+          if (alreadyGreeted) {
+            modellMessage = modellMessage.replace('Xin chào! 😊\n', '');
+          }
+        } else if (userLang === 'en') {
+          modellMessage = MODELL_MESSAGE_EN;
+          if (alreadyGreeted) {
+            modellMessage = modellMessage.replace('Hello! 😊\n', '');
+          }
+        } else {
+          modellMessage = MODELL_MESSAGE;
+          if (alreadyGreeted) {
+            modellMessage = modellMessage.replace('Guten Tag! 😊\n', '');
+          }
+        }
+        
+        console.log(`  modellMessage length: ${modellMessage ? modellMessage.length : 'NULL'}`);
+        console.log(`  modellMessage preview: ${modellMessage ? modellMessage.substring(0, 50) : 'NULL'}...`);
+        
+        if (!modellMessage || modellMessage.trim().length === 0) {
+          console.error('❌ ERROR: modellMessage is empty!');
+          throw new Error('Modell message is empty');
+        }
+        
+        res.json({
+          bot_response: modellMessage,
+          bot_response_2: "EMPTY_RESPONSE",
+          bot_response_3: "EMPTY_RESPONSE"
         });
-      });
+        
+        console.log('✅ Response sent successfully');
+            
+        await saveMessage(contact_id, user_name, 'user', user_message).catch(err => {
+          console.error('Failed to save user message:', err.message);
+        });
+        await saveMessage(contact_id, user_name, 'assistant', modellMessage).catch(err => {
+          console.error('Failed to save assistant message:', err.message);
+        });
+
+        getChatHistory(contact_id).then(updatedHistory => {
+          updateConversationSummary(contact_id, user_name, updatedHistory).catch(err => {
+            console.error('Failed to update summary:', err.message);
+          });
+        });
+        
+        return; // EXIT - don't call AI
+      }
       
-      return; // EXIT - don't call AI
+      // If neither booking nor first-time modell, continue to AI
+      console.log('📞 Modell customer - continuing to AI for general questions');
+    } else {
+      // customerType === 'normal'
+      console.log('👤 NORMAL CUSTOMER FLOW - using AI directly');
     }
     
-    // Check 2: Is this first-time modellkunde query?
-    console.log('🔍 Step 2: Checking if should send modell info (isModellkundeConversation)...');
-    const shouldSendModellInfo = await isModellkundeConversation(user_message, history);
-    console.log(`🔍 Result: shouldSendModellInfo = ${shouldSendModellInfo}\n`);
-
-    if (shouldSendModellInfo) {
-      console.log('✅ SENDING MODELL INFO - SKIP AI');
-      
-      const alreadyGreeted = history.some(msg => 
-        msg.role === 'assistant'
-      );
-      
-      console.log(`  alreadyGreeted: ${alreadyGreeted}`);
-      console.log(`  userLang: ${userLang}`);
-      
-      let modellMessage;
-      if (userLang === 'vi') {
-        modellMessage = MODELL_MESSAGE_VI;
-        if (alreadyGreeted) {
-          modellMessage = modellMessage.replace('Xin chào! 😊\n', '');
-        }
-      } else if (userLang === 'en') {
-        modellMessage = MODELL_MESSAGE_EN;
-        if (alreadyGreeted) {
-          modellMessage = modellMessage.replace('Hello! 😊\n', '');
-        }
-      } else {
-        modellMessage = MODELL_MESSAGE;
-        if (alreadyGreeted) {
-          modellMessage = modellMessage.replace('Guten Tag! 😊\n', '');
-        }
-      }
-      
-      console.log(`  modellMessage length: ${modellMessage ? modellMessage.length : 'NULL'}`);
-      console.log(`  modellMessage preview: ${modellMessage ? modellMessage.substring(0, 50) : 'NULL'}...`);
-      
-      if (!modellMessage || modellMessage.trim().length === 0) {
-        console.error('❌ ERROR: modellMessage is empty!');
-        throw new Error('Modell message is empty');
-      }
-      
-      res.json({
-        bot_response: modellMessage,
-        bot_response_2: "EMPTY_RESPONSE",
-        bot_response_3: "EMPTY_RESPONSE"
-      });
-      
-      console.log('✅ Response sent successfully');
-          
-      await saveMessage(contact_id, user_name, 'user', user_message).catch(err => {
-        console.error('Failed to save user message:', err.message);
-      });
-      await saveMessage(contact_id, user_name, 'assistant', modellMessage).catch(err => {
-        console.error('Failed to save assistant message:', err.message);
-      });
-
-      getChatHistory(contact_id).then(updatedHistory => {
-        updateConversationSummary(contact_id, user_name, updatedHistory).catch(err => {
-          console.error('Failed to update summary:', err.message);
-        });
-      });
-      
-      return; // EXIT - don't call AI
-    }
+    console.log('=== END ROUTING ===\n');
+    
+    // ========== AI RESPONSE (for both normal customers and modell customers with general questions) ==========
     
     // If NOT modellkunde-related, call AI as normal
-    console.log('📞 Calling AI for normal response...');
+    console.log('📞 Calling AI for response...');
     
     const completion = await openai.chat.completions.create({
       model: 'gpt-4.1-2025-04-14',
