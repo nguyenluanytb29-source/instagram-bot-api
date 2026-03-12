@@ -73,14 +73,41 @@ SONNTAG: Geschlossen
 
 🔗 TERMIN-ANFRAGE - ZWEI FÄLLE (NUR FÜR NORMALE KUNDEN):
 
-FALL A: Kunde nennt DIREKT Tag + Uhrzeit in erster Nachricht
-Beispiele: "Ich möchte morgen um 15h", "Can I book tomorrow 3pm", "Tôi muốn đặt ngày mai 3h chiều"
-→ KEIN Link senden
+🔴 FALL A: Kunde nennt DIREKT Tag + Uhrzeit
+Beispiele: 
+- "Ich möchte morgen um 15h"
+- "Can I book tomorrow 3pm"
+- "Tôi muốn đặt ngày mai 3h chiều"
+- "Saturday 2pm"
+- "thứ bảy 14h"
+
+→ KEIN LINK SENDEN! ❌ https://nailounge101.setmore.com/
 → Antworte: "Perfekt! Unsere Mitarbeiter prüfen die Verfügbarkeit und melden sich. Vielen Dank!" (in Kundensprache)
 
-FALL B: Kunde fragt OHNE spezifische Zeit
-Beispiele: "Ich möchte einen Termin", "Can I book?", "Tôi muốn đặt lịch"
-→ Sende Setmore Link:
+WARUM KEIN LINK?
+- Kunde hat schon Tag + Uhrzeit genannt
+- Mitarbeiter werden manuell prüfen
+- Link ist für Selbstbuchung OHNE spezifische Zeit
+
+✅ RICHTIGE ANTWORTEN (Fall A):
+- Vietnamese: "Được! Nhân viên sẽ kiểm tra lịch và liên hệ lại sớm. Cảm ơn!"
+- English: "Perfect! Our staff will check availability and get back to you. Thank you!"
+- German: "Perfekt! Unsere Mitarbeiter prüfen die Verfügbarkeit und melden sich. Vielen Dank!"
+
+❌ FALSCHE ANTWORTEN (Fall A):
+- "Bitte buchen Sie hier: https://nailounge101.setmore.com/" ← FALSCH! Kein Link!
+- "Please book here: https://nailounge101.setmore.com/" ← FALSCH! Kein Link!
+
+---
+
+🔴 FALL B: Kunde fragt OHNE spezifische Zeit
+Beispiele: 
+- "Ich möchte einen Termin"
+- "Can I book?"
+- "Tôi muốn đặt lịch"
+- "bảng giá khách thường" (nur Preis, keine Buchung)
+
+→ Sende Setmore Link + manuelle Option:
   - Deutsch: "Gerne! Online: https://nailounge101.setmore.com/ Oder sagen Sie Tag und Uhrzeit, dann helfe ich gerne!"
   - Englisch: "Sure! Online: https://nailounge101.setmore.com/ Or tell me day and time, I'll help!"
   - Vietnamesisch: "Được! Đặt online: https://nailounge101.setmore.com/ Hoặc cho biết ngày giờ, tôi sẽ hỗ trợ!"
@@ -837,19 +864,38 @@ async function updateConversationSummary(contactId, userName, history) {
         {
           role: 'system',
           content: `Du bist ein Assistent, der Kundengespräche für einen Nagelstudio-Bot zusammenfasst.
+
+⚠️ WICHTIG - DREI ROLLEN IN CONVERSATION:
+- [user]: Kunde schreibt
+- [assistant]: Bot antwortet
+- [staff]: Mitarbeiter antwortet (manuell)
+
+Wenn [staff] Nachrichten vorhanden sind:
+→ Das bedeutet ein Mitarbeiter hat übernommen
+→ Fasse zusammen was zwischen Kunde und Mitarbeiter besprochen wurde
+→ Notiere wichtige Entscheidungen/Zusagen vom Mitarbeiter
+→ Aktueller Status basiert auf letzter staff Nachricht
+
 Erstelle eine kompakte Zusammenfassung auf Deutsch, die folgende Infos enthält (wenn vorhanden):
 - Was der Kunde gefragt/gewünscht hat
 - Welche Dienstleistungen besprochen wurden
 - Ob ein Termin vereinbart wurde (Tag, Uhrzeit IN 24H-FORMAT: 14:00, 18:00 etc.)
-- Ob der Kunde ein Modellkunde ist
+- Was der Mitarbeiter zugesagt/vereinbart hat (wenn staff Nachrichten vorhanden)
+- Ob der Kunde ein Modellkunde ist oder normaler Kunde
 - Besondere Wünsche oder Präferenzen
-- Aktueller Status (z.B. "wartet auf Bestätigung", "Termin gebucht", "fragt nach Preis")
+- Aktueller Status (z.B. "wartet auf Bestätigung", "Termin gebucht durch Mitarbeiter", "fragt nach Preis")
+
 WICHTIG: Speichere Uhrzeiten IMMER in 24h-Format und ändere sie NIEMALS!
-Maximal 5 Sätze. Nur die wichtigsten Infos.`
+Maximal 7 Sätze. Nur die wichtigsten Infos.`
         },
         {
           role: 'user',
-          content: `${existingSummaryText}Neueste Gesprächshistorie:\n${historyText}\n\nBitte erstelle eine aktualisierte Zusammenfassung.`
+          content: `${existingSummaryText}
+
+Neueste Gesprächshistorie (kann [user], [assistant], und [staff] Nachrichten enthalten):
+${historyText}
+
+Bitte erstelle eine aktualisierte Zusammenfassung.`
         }
       ],
       max_tokens: 300,
@@ -921,6 +967,28 @@ app.post('/chat', async (req, res) => {
       });
     }
     
+    // Check if staff takeover JUST expired (staff messages exist but >24h ago)
+    const staffExpiredCheck = await pool.query(
+      `SELECT role, message, timestamp
+       FROM chat_history
+       WHERE contact_id = $1 AND role = 'staff'
+       ORDER BY timestamp DESC
+       LIMIT 1`,
+      [contact_id]
+    );
+    
+    if (staffExpiredCheck.rows.length > 0) {
+      const lastStaffTimestamp = new Date(staffExpiredCheck.rows[0].timestamp);
+      const hoursSinceStaff = (new Date() - lastStaffTimestamp) / (1000 * 60 * 60);
+      
+      // If staff was active recently (24-48h ago), summarize the conversation
+      if (hoursSinceStaff >= 24 && hoursSinceStaff <= 48) {
+        console.log(`🔄 Staff takeover just expired (${hoursSinceStaff.toFixed(1)}h ago) - will summarize conversation`);
+        // Set flag to force summary update at end of this request
+        var forceUpdateSummary = true;
+      }
+    }
+    
     const history = await getChatHistory(contact_id);
     const historyText = formatHistory(history);
     
@@ -936,6 +1004,43 @@ app.post('/chat', async (req, res) => {
     
     console.log(`📖 Saved state from DB: type=${customerType || 'NULL'}, lang=${userLang || 'NULL'}`);
     
+    // 1.5 Check if customer wants to RESTART conversation (just greeting)
+    const lower = user_message.toLowerCase().trim();
+    const isJustGreeting = 
+      lower === 'xin chào' || 
+      lower === 'hello' || 
+      lower === 'hi' ||
+      lower === 'hey' ||
+      lower === 'guten tag' ||
+      lower === 'hallo' ||
+      lower === 'chào';
+    
+    const isRestartRequest =
+      lower.includes('bắt đầu lại') ||
+      lower.includes('restart') ||
+      lower.includes('start over') ||
+      lower.includes('von vorne') ||
+      lower.includes('từ đầu');
+    
+    if ((isJustGreeting || isRestartRequest) && history.length > 0) {
+      console.log('🔄 RESTART/GREETING detected - treating as fresh normal customer');
+      customerType = 'normal';  // Force normal, not NULL
+      
+      // Also detect language from greeting
+      if (lower === 'xin chào' || lower === 'chào') {
+        userLang = 'vi';
+        console.log('  Language detected from greeting: Vietnamese');
+      } else if (lower === 'hello' || lower === 'hi' || lower === 'hey') {
+        userLang = 'en';
+        console.log('  Language detected from greeting: English');
+      } else if (lower === 'guten tag' || lower === 'hallo') {
+        userLang = 'de';
+        console.log('  Language detected from greeting: German');
+      }
+      
+      await updateCustomerState(contact_id, user_name, 'normal', userLang);
+    }
+    
     // 2. Check if customer wants to switch to NORMAL
     if (customerWantsNormalBooking(user_message)) {
       console.log('🔄 Customer requesting NORMAL booking - switching type to NORMAL');
@@ -950,21 +1055,48 @@ app.post('/chat', async (req, res) => {
       console.log(`🌍 First-time language detection: ${userLang}`);
       await updateCustomerState(contact_id, user_name, customerType, userLang);
     } else {
-      // Check if user switched language (strong signal required)
+      // Check if user switched language
       const currentMsgLang = detectLanguage(user_message);
       if (currentMsgLang !== userLang) {
-        const englishDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-        const germanDays = ['montag', 'dienstag', 'mittwoch', 'donnerstag', 'freitag', 'samstag', 'sonntag'];
-        const vietnameseDays = ['thứ hai', 'thứ ba', 'thứ tư', 'thứ năm', 'thứ sáu', 'thứ bảy', 'chủ nhật'];
-        
         const lower = user_message.toLowerCase();
-        const hasStrongSignal = 
-          (currentMsgLang === 'en' && englishDays.some(d => lower.includes(d))) ||
-          (currentMsgLang === 'de' && germanDays.some(d => lower.includes(d))) ||
-          (currentMsgLang === 'vi' && vietnameseDays.some(d => lower.includes(d)));
+        
+        // Strong signals for Vietnamese
+        const vietnameseSignals = [
+          'xin chào', 'chào', 'cảm ơn', 'tôi muốn', 'bạn', 'được không', 'bảng giá',
+          'thứ hai', 'thứ ba', 'thứ tư', 'thứ năm', 'thứ sáu', 'thứ bảy', 'chủ nhật',
+          'khách thường', 'làm móng', 'đặt lịch', 'ngày mai', 'hôm nay'
+        ];
+        
+        // Strong signals for English
+        const englishSignals = [
+          'hello', 'hi', 'thank you', 'i want', 'i would', 'can i', 'price list',
+          'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
+          'regular customer', 'appointment', 'tomorrow', 'today'
+        ];
+        
+        // Strong signals for German
+        const germanSignals = [
+          'guten tag', 'hallo', 'danke', 'ich möchte', 'ich will', 'kann ich', 'preisliste',
+          'montag', 'dienstag', 'mittwoch', 'donnerstag', 'freitag', 'samstag', 'sonntag',
+          'normaler kunde', 'termin', 'morgen', 'heute'
+        ];
+        
+        const hasVietnameseSignal = vietnameseSignals.some(s => lower.includes(s));
+        const hasEnglishSignal = englishSignals.some(s => lower.includes(s));
+        const hasGermanSignal = germanSignals.some(s => lower.includes(s));
+        
+        let hasStrongSignal = false;
+        
+        if (currentMsgLang === 'vi' && hasVietnameseSignal) {
+          hasStrongSignal = true;
+        } else if (currentMsgLang === 'en' && hasEnglishSignal) {
+          hasStrongSignal = true;
+        } else if (currentMsgLang === 'de' && hasGermanSignal) {
+          hasStrongSignal = true;
+        }
         
         if (hasStrongSignal) {
-          console.log(`🔄 Language switched: ${userLang} → ${currentMsgLang} (day name detected)`);
+          console.log(`🔄 Language switched: ${userLang} → ${currentMsgLang} (strong signal detected)`);
           userLang = currentMsgLang;
           await updateCustomerState(contact_id, user_name, customerType, userLang);
         } else {
@@ -1037,30 +1169,51 @@ app.post('/chat', async (req, res) => {
             role: 'system',
             content: `You are an AI assistant that summarizes customer messages for a nail salon.
 
-Analyze the customer's message and provide a brief summary of:
-1. What the customer wants (appointment, price info, model customer, question, etc.)
-2. Any specific details (day, time, service type)
-3. Customer's sentiment (polite, urgent, confused, etc.)
+Analyze the customer's message and conversation context to provide a brief summary of:
+1. What the customer wants (appointment, price info, model customer, normal customer, question, etc.)
+2. Any specific details (day, time, service type, customer type change)
+3. Customer's sentiment and important context
 
-Keep it under 50 words. Be concise and factual.
+CRITICAL - DETECT CUSTOMER TYPE CHANGES:
+- If customer says "khách thường" / "regular customer" / "normaler kunde" → Note: "Customer wants to switch to NORMAL customer"
+- If customer says "modell" / "model" / "mẫu" → Note: "Customer asking about MODEL customer"
+- If customer is just greeting ("hello", "xin chào", "hallo") → Note: "Customer greeting / restarting conversation"
+- If customer says "bảng giá" / "price list" / "preisliste" → Note: "Customer asking for price list"
 
-Example:
+Keep it under 80 words. Be concise and factual.
+
+Examples:
 Input: "tôi muốn đặt lịch chủ nhật 17h"
-Output: "Customer wants appointment on Sunday at 5pm (17h). Vietnamese speaker."
+Output: "Customer wants appointment on Sunday at 5pm (17h). Vietnamese speaker. Normal booking request."
+
+Input: "mình muốn đặt lịch như khách thường"
+Output: "Customer wants to switch to NORMAL customer (not model). Requesting regular booking. Vietnamese speaker."
+
+Input: "bảng giá khách thường"
+Output: "Customer asking for NORMAL customer price list (not model prices). Vietnamese speaker."
 
 Input: "modell preis"
-Output: "Customer asking about model customer prices. German speaker."
+Output: "Customer asking about MODEL customer prices. German speaker."
+
+Input: "xin chào"
+Output: "Customer greeting in Vietnamese. Fresh start / restart conversation."
 
 Input: "ja ok Saturday 2pm"
 Output: "Customer agrees and suggests Saturday 2pm. Confirmation message."`
           },
           {
             role: 'user',
-            content: `Customer message: "${user_message}"\n\nRecent conversation context:\n${historyText.substring(historyText.length - 500)}`
+            content: `Customer message: "${user_message}"
+
+Recent conversation context:
+${historyText.substring(Math.max(0, historyText.length - 800))}
+
+Customer type from system: ${customerType}
+Customer language: ${userLang}`
           }
         ],
         temperature: 0.3,
-        max_tokens: 100
+        max_tokens: 150
       });
       
       userIntentSummary = intentCompletion.choices[0].message.content.trim();
@@ -1089,7 +1242,18 @@ ${historyText}
 
 CURRENT MESSAGE: ${user_message}
 
-📝 INTENT SUMMARY: ${userIntentSummary}
+---
+
+🎯🎯🎯 CRITICAL - READ THE INTENT SUMMARY FIRST 🎯🎯🎯
+
+📝 CUSTOMER INTENT SUMMARY (what customer wants):
+${userIntentSummary}
+
+⚠️ IMPORTANT: Base your response on this intent summary!
+- If summary says "wants appointment" → help with booking
+- If summary says "asking about prices" → give price info
+- If summary says "switching to normal customer" → treat as normal, not modell
+- If summary says "greeting/restart" → give fresh greeting
 
 ---
 
@@ -1120,7 +1284,14 @@ ${historyText}
 
 CURRENT MESSAGE: ${user_message}
 
-📝 INTENT SUMMARY: ${userIntentSummary}
+---
+
+🎯🎯🎯 CRITICAL - READ THE INTENT SUMMARY FIRST 🎯🎯🎯
+
+📝 CUSTOMER INTENT SUMMARY (what customer wants):
+${userIntentSummary}
+
+⚠️ IMPORTANT: Base your response on this intent summary!
 
 ---
 
