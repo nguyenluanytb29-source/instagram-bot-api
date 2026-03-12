@@ -603,14 +603,23 @@ function isModellkundeAcceptanceWithBooking(userMessage, history) {
   // Check if this is a modellkunde customer (already received modell info)
   const hasReceivedModellInfo = history.some(msg => 
     msg.role === 'assistant' && 
-    (msg.message.includes('Wir freuen uns sehr') || 
+    (msg.message.includes('Cảm ơn bạn đã quan tâm') ||  // Vietnamese
+     msg.message.includes('Thank you for your interest') ||  // English
+     msg.message.includes('Vielen Dank für Ihr Interesse') ||  // German
+     msg.message.includes('Wir freuen uns sehr') || 
      msg.message.includes('We are delighted') ||
-     msg.message.includes('Chúng tôi rất vui'))
+     msg.message.includes('Chúng tôi rất vui') ||
+     msg.message.includes('Giá phụ thuộc vào thiết kế') ||  // Vietnamese pricing
+     msg.message.includes('The price depends on the design') ||  // English pricing
+     msg.message.includes('Der Preis richtet sich nach'))  // German pricing
   );
   
   if (!hasReceivedModellInfo) {
+    console.log('✗ Customer has NOT received modell info yet');
     return false; // Not a modellkunde customer yet
   }
+  
+  console.log('✓ Customer HAS received modell info');
   
   // Check if customer is accepting and trying to book
   const lower = userMessage.toLowerCase().trim();
@@ -622,10 +631,14 @@ function isModellkundeAcceptanceWithBooking(userMessage, history) {
   // DateTime keywords
   const hasDateTime = /\d{1,2}(h|:|pm|am|uhr|giờ)|\b(morgen|tomorrow|today|heute|ngày mai|hôm nay|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag|monday|tuesday|wednesday|thursday|friday|saturday|sunday|thứ hai|thứ ba|thứ tư|thứ năm|thứ sáu|thứ bảy|chủ nhật)\b/i.test(userMessage);
   
+  console.log(`  hasAcceptance: ${hasAcceptance}, hasDateTime: ${hasDateTime}`);
+  
   const result = hasAcceptance && hasDateTime;
   
   if (result) {
-    console.log('✓ Modellkunde customer is accepting + booking');
+    console.log('✓ Modellkunde customer is accepting + booking → SEND BOOKING LINK');
+  } else {
+    console.log('✗ Not a booking attempt (missing acceptance or datetime)');
   }
   
   return result;
@@ -982,12 +995,18 @@ Greet and answer in ${detectedLangName}.`;
 
     console.log(`🔍 DEBUG - User message: "${user_message}"`);
     console.log(`🔍 DEBUG - History length: ${history.length}`);
+    console.log(`🔍 DEBUG - History (last 3 messages):`);
+    history.slice(-3).forEach(msg => {
+      console.log(`  [${msg.role}]: ${msg.message.substring(0, 100)}...`);
+    });
     
     // ⚠️ CHECK MODELLKUNDE **BEFORE** CALLING AI
     // If this is modellkunde-related, we don't need AI response at all!
     
+    console.log('\n🔍 Step 1: Checking if customer is booking (isModellkundeAcceptanceWithBooking)...');
     // Check 1: Is customer trying to book (already modellkunde + acceptance + datetime)?
     const isModellBooking = isModellkundeAcceptanceWithBooking(user_message, history);
+    console.log(`🔍 Result: isModellBooking = ${isModellBooking}\n`);
     
     if (isModellBooking) {
       console.log('🎯 Modellkunde customer is booking - sending booking link');
@@ -1026,7 +1045,9 @@ Greet and answer in ${detectedLangName}.`;
     }
     
     // Check 2: Is this first-time modellkunde query?
+    console.log('🔍 Step 2: Checking if should send modell info (isModellkundeConversation)...');
     const shouldSendModellInfo = await isModellkundeConversation(user_message, history);
+    console.log(`🔍 Result: shouldSendModellInfo = ${shouldSendModellInfo}\n`);
 
     if (shouldSendModellInfo) {
       console.log('🔍 Sending Modell info - SKIP AI');
