@@ -395,9 +395,16 @@ function hasModellKeyword(text) {
   }
   
   const keywords = [
-    'modell', 'model', 'azubi', 'auzubi', 'übung', 'training', 'schulung',
-    '15euro', '15 euro', '15 €', '15€',
-    'mẫu', 'học viên', 'khách mẫu', 'thực hành', 'luyện tập'
+    // Core keywords
+    'modell', 'model', 'azubi', 'mẫu', 'học viên', 'khách mẫu',
+    // German
+    'auszubildende', 'auzubi', 'übung', 'training', 'schulung', 'schüler', 'anfänger', 'lehrling',
+    // English
+    'trainee', 'student', 'practice', 'beginner', 'apprentice',
+    // Vietnamese
+    'thực hành', 'luyện tập', 'tập sự',
+    // Pricing
+    '15euro', '15 euro', '15 €', '15€', 'rẻ', 'günstig', 'cheap'
   ];
   
   // Special Vietnamese patterns
@@ -419,6 +426,24 @@ async function classifyCustomerIntent(userMessage, history) {
     if (greetingsOnly.includes(lower)) {
       console.log('✗ Just a greeting, not modellkunde');
       return false;
+    }
+    
+    // Quick acceptance for DIRECT modell keywords
+    const directModellKeywords = [
+      // Core keywords (exact match)
+      'modell', 'model', 'azubi', 'mẫu', 'khách mẫu', 'học viên',
+      // German variants
+      'auszubildende', 'übung', 'training', 'schulung', 'schüler', 'anfänger', 'lehrling',
+      // English variants
+      'trainee', 'student', 'practice', 'beginner', 'apprentice',
+      // Vietnamese variants
+      'thực hành', 'luyện tập', 'tập sự',
+      // Pricing (indicates modell interest)
+      '15€', '15 euro', '15euro', 'rẻ', 'günstig', 'cheap'
+    ];
+    if (directModellKeywords.includes(lower)) {
+      console.log('✓ Direct modell keyword detected - MODELLKUNDE');
+      return true;
     }
     
     const historyContext = history.slice(-5).map(msg => 
