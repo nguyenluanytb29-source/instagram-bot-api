@@ -420,11 +420,17 @@ function hasModellKeyword(text) {
 
 async function classifyCustomerIntent(userMessage, history) {
   try {
+    console.log(`\n🔍 === classifyCustomerIntent START ===`);
+    console.log(`  Input message: "${userMessage}"`);
+    
     // Quick rejection for obvious non-modell queries  
     const lower = userMessage.toLowerCase().trim();
+    console.log(`  Lowercase trimmed: "${lower}"`);
+    
     const greetingsOnly = ['xin chào', 'hello', 'hi', 'guten tag', 'hallo', 'chào', 'hey', 'good morning', 'good afternoon'];
     if (greetingsOnly.includes(lower)) {
-      console.log('✗ Just a greeting, not modellkunde');
+      console.log('  ✗ Just a greeting, not modellkunde');
+      console.log('🔍 === classifyCustomerIntent END: FALSE ===\n');
       return false;
     }
     
@@ -443,12 +449,25 @@ async function classifyCustomerIntent(userMessage, history) {
       '15€', '15 euro', '15euro', 'rẻ', 'günstig', 'cheap'
     ];
     
+    console.log(`  Checking ${directModellKeywords.length} direct keywords...`);
+    
     // Use substring match instead of exact match
-    const hasDirectKeyword = directModellKeywords.some(keyword => lower.includes(keyword));
+    const hasDirectKeyword = directModellKeywords.some(keyword => {
+      const matches = lower.includes(keyword);
+      if (matches) {
+        console.log(`  ✓ MATCH FOUND: "${keyword}" in "${lower}"`);
+      }
+      return matches;
+    });
+    
     if (hasDirectKeyword) {
-      console.log(`✓ Direct modell keyword detected: "${userMessage}" - MODELLKUNDE`);
+      console.log(`  ✓ Direct modell keyword detected: "${userMessage}" - MODELLKUNDE`);
+      console.log('🔍 === classifyCustomerIntent END: TRUE (fast path) ===\n');
       return true;
     }
+    
+    console.log(`  ✗ No direct keyword match found`);
+    console.log(`  → Calling AI for classification...`);
     
     const historyContext = history.slice(-5).map(msg => 
       `[${msg.role}]: ${msg.message}`
@@ -494,11 +513,16 @@ Antworte NUR mit: MODELLKUNDE oder NORMAL`
     });
 
     const intent = classification.choices[0].message.content.trim().toUpperCase();
-    console.log(`🎯 Intent classification: ${intent} (message: "${userMessage}")`);
+    console.log(`  AI classification result: ${intent}`);
+    console.log(`🔍 === classifyCustomerIntent END: ${intent === 'MODELLKUNDE'} (AI) ===\n`);
     return intent === 'MODELLKUNDE';
   } catch (error) {
-    console.error('❌ Intent classification error:', error);
-    return hasModellKeyword(userMessage);
+    console.error('  ❌ Intent classification error:', error);
+    console.log(`  → Falling back to hasModellKeyword...`);
+    const fallback = hasModellKeyword(userMessage);
+    console.log(`  Fallback result: ${fallback}`);
+    console.log(`🔍 === classifyCustomerIntent END: ${fallback} (fallback) ===\n`);
+    return fallback;
   }
 }
 
