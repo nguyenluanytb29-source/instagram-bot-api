@@ -674,22 +674,41 @@ async function isModellkundeConversation(userMessage, history, customerType) {
       !msg.message.startsWith('(SYSTEM)')
     );
     
-    const alreadySentModellInfo = validHistory.some(msg => 
-      msg.role === 'assistant' && 
-      (msg.message.includes('Cảm ơn bạn đã quan tâm') ||  // Vietnamese
-       msg.message.includes('Thank you for your interest') ||  // English
-       msg.message.includes('Vielen Dank für Ihr Interesse') ||  // German
-       msg.message.includes('Giá phụ thuộc vào thiết kế') ||  // Vietnamese pricing
-       msg.message.includes('The price depends on the design') ||  // English pricing
-       msg.message.includes('Der Preis richtet sich nach'))  // German pricing
-    );
+    // Check for ACTUAL modell message content (not AI-generated)
+    // Must contain multiple specific phrases from MODELL_MESSAGE
+    const alreadySentModellInfo = validHistory.some(msg => {
+      if (msg.role !== 'assistant') return false;
+      
+      const content = msg.message;
+      
+      // Check for SPECIFIC phrases that ONLY appear in MODELL_MESSAGE
+      // Vietnamese version check
+      const hasViModellMessage = 
+        content.includes('Giá phụ thuộc vào thiết kế') &&
+        content.includes('2–3 giờ') &&
+        content.includes('kostenlose Nachbesserung') === false; // Not German
+      
+      // English version check  
+      const hasEnModellMessage =
+        content.includes('The price depends on the design') &&
+        content.includes('2–3 hours') &&
+        content.includes('kostenlose Nachbesserung') === false; // Not German
+      
+      // German version check
+      const hasDeModellMessage =
+        content.includes('Der Preis richtet sich nach') &&
+        content.includes('2–3 Stunden') &&
+        content.includes('kostenlose Nachbesserung');
+      
+      return hasViModellMessage || hasEnModellMessage || hasDeModellMessage;
+    });
     
     if (alreadySentModellInfo) {
-      console.log('✗ Modell info already sent - NOT sending again');
+      console.log('✗ MODELL_MESSAGE already sent (verified) - NOT sending again');
       return false;
     }
     
-    console.log('✓ Customer type is MODELL and no modell info in history - WILL send info');
+    console.log('✓ Customer type is MODELL and no MODELL_MESSAGE in history - WILL send info');
     return true;
   }
   
