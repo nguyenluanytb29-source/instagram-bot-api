@@ -128,10 +128,20 @@ Sonntag: Geschlossen
 
 🕐 ZEIT-FORMATE (WICHTIG - IMMER 24H FORMAT VERWENDEN!):
 - "3h" oder "3pm" oder "3h chiều" = 15:00 (15h im 24h-Format)
+- "4h chiều" = 16:00 (4pm afternoon)
 - "6h" oder "6pm" oder "6h tối" = 18:00 (18h im 24h-Format)
 - "3h" ohne "chiều/pm" könnte 03:00 oder 15:00 sein - IMMER nachfragen welche!
-- Speichere Zeit IMMER in 24h-Format: 14:00, 15:00, 18:00 etc.
+- Speichere Zeit IMMER in 24h-Format: 14:00, 15:00, 16:00, 18:00 etc.
 - NIEMALS die Zeit von 18h auf 14h oder umgekehrt ändern!
+
+⚠️ VIETNAMESE TIME CONVERSIONS:
+- "2h chiều" = 14:00 (2pm)
+- "3h chiều" = 15:00 (3pm)
+- "4h chiều" = 16:00 (4pm) ← CRITICAL!
+- "5h chiều" = 17:00 (5pm)
+- "6h tối" = 18:00 (6pm)
+- "chiều" = afternoon (12:00-18:00)
+- "tối" = evening (18:00-22:00)
 
 📋 BUCHUNGS-ABLAUF:
 
@@ -1222,7 +1232,26 @@ app.post('/chat', async (req, res) => {
     }
     
     // 4. Determine customer type (if not set AND not explicitly normal)
-    if (!customerType) {
+    // CRITICAL: Check for DECLINE before classifying!
+    const lower = user_message.toLowerCase().trim();
+    const decliningPhrases = [
+      'không muốn', 'k muốn', 'ko muốn', 'khong muon',
+      'nicht', 'not', 'don\'t want', 'dont want',
+      'nein', 'no thanks', 'no thank',
+      'thôi', 'thoi', 'cancel',
+      'khách thường', 'normal customer', 'normaler kunde'
+    ];
+    
+    const isDecliningModell = decliningPhrases.some(phrase => 
+      lower.includes(phrase) && 
+      (lower.includes('mẫu') || lower.includes('modell') || lower.includes('model'))
+    );
+    
+    if (isDecliningModell && (customerType === 'modell' || !customerType)) {
+      console.log(`🔄 Customer DECLINING modell service - setting to NORMAL`);
+      customerType = 'normal';
+      await updateCustomerState(contact_id, user_name, 'normal', userLang);
+    } else if (!customerType) {
       const isModell = await classifyCustomerIntent(user_message, history);
       customerType = isModell ? 'modell' : 'normal';
       console.log(`🎯 First-time customer type detection: ${customerType}`);
@@ -1236,22 +1265,8 @@ app.post('/chat', async (req, res) => {
         await updateCustomerState(contact_id, user_name, 'modell', userLang);
       }
     } else if (customerType === 'modell') {
-      // Check if customer is DECLINING modell service
-      const lower = user_message.toLowerCase().trim();
-      const decliningPhrases = [
-        'không muốn', 'k muốn', 'ko muốn', 'khong muon',
-        'nicht', 'not', 'don\'t want', 'dont want',
-        'nein', 'no thanks', 'no thank',
-        'thôi', 'thoi', 'cancel',
-        'khách thường', 'normal customer', 'normaler kunde'
-      ];
-      
-      const isDeclining = decliningPhrases.some(phrase => 
-        lower.includes(phrase) && 
-        (lower.includes('mẫu') || lower.includes('modell') || lower.includes('model'))
-      );
-      
-      if (isDeclining) {
+      // Already checked decline above, but keep this for clarity
+      if (isDecliningModell) {
         console.log(`🔄 Customer DECLINING modell service - switching to NORMAL`);
         customerType = 'normal';
         await updateCustomerState(contact_id, user_name, 'normal', userLang);
