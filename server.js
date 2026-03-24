@@ -429,8 +429,9 @@ async function classifyCustomerIntent(userMessage, history) {
     }
     
     // Quick acceptance for DIRECT modell keywords
+    // Use substring match instead of exact match for better detection
     const directModellKeywords = [
-      // Core keywords (exact match)
+      // Core keywords
       'modell', 'model', 'azubi', 'mẫu', 'khách mẫu', 'học viên',
       // German variants
       'auszubildende', 'übung', 'training', 'schulung', 'schüler', 'anfänger', 'lehrling',
@@ -441,8 +442,11 @@ async function classifyCustomerIntent(userMessage, history) {
       // Pricing (indicates modell interest)
       '15€', '15 euro', '15euro', 'rẻ', 'günstig', 'cheap'
     ];
-    if (directModellKeywords.includes(lower)) {
-      console.log('✓ Direct modell keyword detected - MODELLKUNDE');
+    
+    // Use substring match instead of exact match
+    const hasDirectKeyword = directModellKeywords.some(keyword => lower.includes(keyword));
+    if (hasDirectKeyword) {
+      console.log(`✓ Direct modell keyword detected: "${userMessage}" - MODELLKUNDE`);
       return true;
     }
     
