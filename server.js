@@ -1233,7 +1233,7 @@ app.post('/chat', async (req, res) => {
     
     // 4. Determine customer type (if not set AND not explicitly normal)
     // CRITICAL: Check for DECLINE before classifying!
-    const lower = user_message.toLowerCase().trim();
+    // Note: 'lower' variable already declared above at line 1129
     const decliningPhrases = [
       'không muốn', 'k muốn', 'ko muốn', 'khong muon',
       'nicht', 'not', 'don\'t want', 'dont want',
