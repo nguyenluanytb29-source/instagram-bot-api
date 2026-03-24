@@ -747,27 +747,31 @@ function isModellkundeAcceptanceWithBooking(userMessage, history) {
   
   console.log('✓ Customer HAS received modell info');
   
-  // Check if customer is giving datetime (implies booking attempt)
+  // For MODELL customers: They book online themselves!
+  // We just send link when they accept (say ok/yes/agree)
+  // We DON'T ask for datetime - they choose it on Setmore
   const lower = userMessage.toLowerCase().trim();
   
-  // DateTime keywords - expanded to include "day after tomorrow"
-  const hasDateTime = /\d{1,2}(h|:|pm|am|uhr|giờ)|\b(morgen|tomorrow|today|heute|ngày mai|hôm nay|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag|monday|tuesday|wednesday|thursday|friday|saturday|sunday|thứ hai|thứ ba|thứ tư|thứ năm|thứ sáu|thứ bảy|chủ nhật|day after tomorrow|übermorgen|ngày kia)\b/i.test(userMessage);
+  // Acceptance keywords
+  const acceptanceKeywords = ['ok', 'okay', 'ja', 'yes', 'passt', 'agree', 'được', 'vâng', 'fine', 'sure', 'đồng ý', 'alright'];
   
-  // Acceptance keywords (optional if datetime is given)
-  const acceptanceKeywords = ['ok', 'okay', 'ja', 'yes', 'passt', 'agree', 'được', 'vâng', 'fine', 'sure'];
-  const hasAcceptance = acceptanceKeywords.some(k => lower.includes(k));
+  // Check if message is JUST acceptance (not other questions)
+  const isJustAcceptance = acceptanceKeywords.some(k => 
+    lower === k || 
+    lower.startsWith(k + ' ') ||
+    lower.startsWith(k + ',') ||
+    lower.startsWith(k + '.')
+  );
   
-  console.log(`  hasAcceptance: ${hasAcceptance}, hasDateTime: ${hasDateTime}`);
+  console.log(`  isJustAcceptance: ${isJustAcceptance}`);
   
-  // If customer has received modell info and gives datetime → treat as booking attempt
-  // Acceptance is optional (giving datetime after modell info implies acceptance)
-  const result = hasDateTime;  // Just need datetime!
-  
-  if (result) {
-    console.log('✓ Modellkunde customer giving datetime → SEND BOOKING LINK');
-  } else {
-    console.log('✗ Not a booking attempt (no datetime given)');
+  if (isJustAcceptance) {
+    console.log('✓ Modellkunde customer accepting → SEND BOOKING LINK (they book online themselves)');
+    return true;
   }
+  
+  console.log('✗ Not a simple acceptance - may have questions');
+  return false;
   
   return result;
 }
