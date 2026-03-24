@@ -1217,6 +1217,27 @@ app.post('/chat', async (req, res) => {
         customerType = 'modell';
         await updateCustomerState(contact_id, user_name, 'modell', userLang);
       }
+    } else if (customerType === 'modell') {
+      // Check if customer is DECLINING modell service
+      const lower = user_message.toLowerCase().trim();
+      const decliningPhrases = [
+        'không muốn', 'k muốn', 'ko muốn', 'khong muon',
+        'nicht', 'not', 'don\'t want', 'dont want',
+        'nein', 'no thanks', 'no thank',
+        'thôi', 'thoi', 'cancel',
+        'khách thường', 'normal customer', 'normaler kunde'
+      ];
+      
+      const isDeclining = decliningPhrases.some(phrase => 
+        lower.includes(phrase) && 
+        (lower.includes('mẫu') || lower.includes('modell') || lower.includes('model'))
+      );
+      
+      if (isDeclining) {
+        console.log(`🔄 Customer DECLINING modell service - switching to NORMAL`);
+        customerType = 'normal';
+        await updateCustomerState(contact_id, user_name, 'normal', userLang);
+      }
     }
     
     console.log(`✅ Final state: customerType=${customerType}, userLang=${userLang}`);
