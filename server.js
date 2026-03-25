@@ -702,9 +702,44 @@ async function detectLanguageWithAI(userMessage, conversationHistory) {
     // For very first message with clear patterns, use fast detection
     const lower = userMessage.toLowerCase().trim();
     if (conversationHistory.length === 0) {
+      // English greetings/starters
       if (['hello', 'hi', 'hey'].some(g => lower === g || lower.startsWith(g + ' '))) return 'en';
-      if (['guten tag', 'hallo'].some(g => lower.includes(g))) return 'de';
+      
+      // German greetings/starters
+      if (['guten tag', 'hallo', 'guten morgen', 'guten abend'].some(g => lower.includes(g))) return 'de';
+      
+      // Vietnamese greetings/starters
       if (['xin chào', 'chào'].some(g => lower.includes(g))) return 'vi';
+      
+      // CRITICAL: Check for German structure in first message
+      // German has unique articles and structure
+      const germanArticles = ['der', 'die', 'das', 'eine', 'ein', 'einem', 'einer'];
+      const germanVerbs = ['würde', 'möchte', 'könnte', 'sollte', 'hätte'];
+      const germanWords = ['gerne', 'auch', 'person', 'personen'];
+      
+      let germanScore = 0;
+      germanArticles.forEach(word => {
+        if (new RegExp(`\\b${word}\\b`, 'i').test(lower)) germanScore += 2;
+      });
+      germanVerbs.forEach(word => {
+        if (new RegExp(`\\b${word}\\b`, 'i').test(lower)) germanScore += 3;
+      });
+      germanWords.forEach(word => {
+        if (new RegExp(`\\b${word}\\b`, 'i').test(lower)) germanScore += 1;
+      });
+      
+      // If strong German signals in first message, detect as German
+      if (germanScore >= 4) {
+        console.log(`  🇩🇪 First message detected as German (score: ${germanScore})`);
+        return 'de';
+      }
+      
+      // Check for Vietnamese unique characters
+      const vietnameseChars = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/;
+      if (vietnameseChars.test(lower)) {
+        console.log('  🇻🇳 First message detected as Vietnamese (unique chars)');
+        return 'vi';
+      }
     }
     
     // Build conversation context ONLY from USER messages (not bot responses)
