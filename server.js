@@ -1656,13 +1656,35 @@ Greet and answer in ${detectedLangName}.`;
     if (customerType === 'modell') {
       console.log('🎨 MODELL CUSTOMER FLOW');
       
-      // Check 1: Is customer trying to book (already modellkunde + acceptance + datetime)?
-      console.log('\n🔍 Step 1: Checking if customer is booking (isModellkundeAcceptanceWithBooking)...');
-      const isModellBooking = isModellkundeAcceptanceWithBooking(user_message, history);
-      console.log(`🔍 Result: isModellBooking = ${isModellBooking}\n`);
+      // CRITICAL: Check if this is a MULTI-PERSON request (1 model + 1 normal)
+      // If so, we need AI to explain BOTH, not just send MODELL_MESSAGE
+      console.log(`🔍 Checking multi-person detection...`);
+      console.log(`  userIntentSummary: "${userIntentSummary}"`);
       
-      if (isModellBooking) {
-        console.log('🎯 Modellkunde customer is booking - sending booking link');
+      const isMultiPersonMixed = 
+        userIntentSummary && (
+          (userIntentSummary.toLowerCase().includes('one person') && userIntentSummary.toLowerCase().includes('other')) ||
+          (userIntentSummary.toLowerCase().includes('eine person') && userIntentSummary.toLowerCase().includes('andere')) ||
+          (userIntentSummary.toLowerCase().includes('một người') && userIntentSummary.toLowerCase().includes('người kia')) ||
+          (userIntentSummary.toLowerCase().includes('model') && userIntentSummary.toLowerCase().includes('normal'))
+        );
+      
+      console.log(`  isMultiPersonMixed: ${isMultiPersonMixed}`);
+      
+      if (isMultiPersonMixed) {
+        console.log('🔄 MULTI-PERSON REQUEST DETECTED (1 model + 1 normal) - calling AI to explain both');
+        // Don't use hard-coded message, let AI explain both services
+        // Continue to AI call below...
+      } else {
+        // Single modell customer - use hard-coded flow
+        
+        // Check 1: Is customer trying to book (already modellkunde + acceptance + datetime)?
+        console.log('\n🔍 Step 1: Checking if customer is booking (isModellkundeAcceptanceWithBooking)...');
+        const isModellBooking = isModellkundeAcceptanceWithBooking(user_message, history);
+        console.log(`🔍 Result: isModellBooking = ${isModellBooking}\n`);
+        
+        if (isModellBooking) {
+          console.log('🎯 Modellkunde customer is booking - sending booking link');
         
         let bookingMessage;
         if (userLang === 'vi') {
