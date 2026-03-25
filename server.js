@@ -1786,6 +1786,8 @@ Greet and answer in ${detectedLangName}.`;
       
       // If neither booking nor first-time modell, continue to AI
       console.log('📞 Modell customer - continuing to AI for general questions');
+      } // Close: else block for isMultiPersonMixed
+      
     } else {
       // customerType === 'normal'
       console.log('👤 NORMAL CUSTOMER FLOW - using AI directly');
