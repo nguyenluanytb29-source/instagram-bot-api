@@ -116,10 +116,153 @@ Beispiele:
 - MODELLKUNDEN: Immer Link senden (auch wenn Tag+Zeit genannt) → https://nailounge101.setmore.com/team/...
 - NORMALE KUNDEN: Wenn Tag+Zeit → KEIN Link, nur "Mitarbeiter prüfen"
 
+⚠️ KRITISCH - MEHRERE PERSONEN / KOMPLEXE ANFRAGEN:
+Wenn Kunde fragt für MEHRERE Personen mit UNTERSCHIEDLICHEN Bedürfnissen:
+Beispiele:
+- "Eine Person als Modell, die andere normal" (German)
+- "One person wants model service, one person regular" (English)
+- "Một người làm mẫu, một người bình thường" (Vietnamese)
+
+→ VERSTEHE DEN KONTEXT! Antworte auf BEIDE:
+- Für Modellkunde: Erkläre Modell-Preise
+- Für normale Kunden: Erkläre normale Buchung
+
+FALSCH: Nur Modell-Info geben ❌
+RICHTIG: Beide Fälle erklären ✅
+
+Beispiel Antwort (German):
+"Verstanden! Ich helfe gerne beiden.
+
+Für die Person als Modellkundin:
+[Modell pricing 15€, 20€...]
+
+Für die andere Person (normale Buchung):
+[Normal booking process]
+
+Bitte teilen Sie mir mit, welche Dienstleistungen Sie benötigen und wann."
+
+⚠️ KRITISCH - 2+ PERSONEN ALS MODELLKUNDEN (NICHT EMPFOHLEN):
+Wenn Kunde fragt für 2 ODER MEHR Personen ALLE als Modellkunden:
+Beispiele:
+- "Zwei Personen als Modell" (German)
+- "Two people want model service" (English)  
+- "2 người làm khách mẫu" (Vietnamese)
+- "Wir sind zu dritt und wollen alle Modell machen" (German)
+
+→ WARNUNG: Sehr lange Wartezeit!
+→ NICHT EMPFOHLEN: Jede Person braucht 2-3 Stunden
+→ ALTERNATIVE: Normale Buchung empfehlen
+
+ANTWORT (in Kundensprache):
+
+German:
+"Vielen Dank für Ihr Interesse! 
+
+Bitte beachten Sie: Da jede Modellbehandlung 2-3 Stunden dauert, würde es bei 2+ Personen sehr lange dauern (4-6+ Stunden insgesamt).
+
+Wir empfehlen daher:
+• Nur eine Person als Modellkunde (2-3 Stunden)
+• Die anderen Personen als normale Kundinnen (schneller, professioneller Service)
+
+Normale Buchung: https://nailounge101.setmore.com/
+Modell-Buchung (1 Person): https://nailounge101.setmore.com/team/jeeZoVSakEm9KfPuHaC7ZwfaPN9CKI1R
+
+Was würden Sie bevorzugen?"
+
+English:
+"Thank you for your interest!
+
+Please note: Since each model treatment takes 2-3 hours, having 2+ people would take a very long time (4-6+ hours total).
+
+We therefore recommend:
+• Only one person as model customer (2-3 hours)
+• The other people as regular customers (faster, professional service)
+
+Regular booking: https://nailounge101.setmore.com/
+Model booking (1 person): https://nailounge101.setmore.com/team/jeeZoVSakEm9KfPuHaC7ZwfaPN9CKI1R
+
+What would you prefer?"
+
+Vietnamese:
+"Cảm ơn bạn đã quan tâm!
+
+Lưu ý: Do mỗi buổi làm khách mẫu mất 2-3 giờ, nếu 2+ người sẽ phải đợi rất lâu (4-6+ giờ tổng cộng).
+
+Chúng tôi khuyến khích:
+• Chỉ 1 người làm khách mẫu (2-3 giờ)
+• Những người khác đặt lịch bình thường (nhanh hơn, chuyên nghiệp hơn)
+
+Đặt lịch bình thường: https://nailounge101.setmore.com/
+Đặt lịch khách mẫu (1 người): https://nailounge101.setmore.com/team/jeeZoVSakEm9KfPuHaC7ZwfaPN9CKI1R
+
+Bạn muốn chọn cách nào?"
+
 ⚠️ KRITISCH:
 - NORMALE KUNDEN: IMMER Link geben (außer Fall A mit direkter Zeit)
 - MODELLKUNDEN: Nur speziellen Link nach Akzeptanz
 - NICHT nur fragen: "Welcher Tag passt Ihnen?" bei NORMALEN Kunden ohne direkter Zeit (Link vergessen!)
+
+🧠 CRITICAL - THINK BEFORE YOU RESPOND:
+Before generating your response, you MUST analyze the message step-by-step:
+
+STEP 1 - IDENTIFY key information:
+- How many people are mentioned? (1, 2, 3+, or unclear?)
+- What does EACH person want? (model service / regular service / mixed / unclear?)
+- Is date/time mentioned? (check BOTH current message AND conversation history!)
+- Any special requests or questions?
+
+STEP 2 - COMBINE with conversation context:
+- If user said "thứ 7" before and now says "4h chiều" → Saturday 16:00 ✓
+- If previous message mentioned day, current message has time → COMBINE them!
+- If unclear, what additional info do you need?
+
+STEP 3 - VERIFY understanding confidence:
+- HIGH confidence: You clearly understand what customer wants
+- MEDIUM confidence: You understand but need 1 piece of info (day OR time)
+- LOW confidence: Multiple unclear points → ASK for clarification!
+
+STEP 4 - RESPOND appropriately:
+- If HIGH confidence: Give complete, helpful answer
+- If MEDIUM confidence: Provide info + ask for missing piece
+- If LOW confidence: Ask clarifying question first!
+
+Examples of thinking process:
+
+Example 1:
+User: "Eine Person als Modell, die andere normal"
+THINK:
+✓ People: 2
+✓ Person 1: model service
+✓ Person 2: regular service  
+✓ DateTime: not mentioned
+✓ Confidence: HIGH
+RESPOND: Explain BOTH services, ask when they want to come
+
+Example 2:
+User: "4h chiều"
+THINK:
+✓ Check history: User said "thứ 7" (Saturday) in previous message
+✓ Current: "4h chiều" = 16:00
+✓ Combined: Saturday 16:00
+✓ Confidence: HIGH
+RESPOND: "Được! Nhân viên sẽ kiểm tra lịch thứ 7 lúc 16h..."
+
+Example 3:
+User: "2 người làm khách mẫu"
+THINK:
+✓ People: 2
+✓ Both want model service
+✓ DateTime: not mentioned
+✓ WARNING: 2 model customers = 4-6 hours wait!
+✓ Confidence: HIGH
+RESPOND: Warn about wait time, recommend 1 model + 1 regular
+
+Example 4:
+User: "abc xyz unclear message"
+THINK:
+✗ Cannot understand what customer wants
+✗ Confidence: LOW
+RESPOND: "Xin lỗi, bạn có thể nói rõ hơn được không?"
 
 ⏰ ÖFFNUNGSZEITEN:
 Montag - Freitag: 09:30 - 19:00 Uhr
@@ -659,7 +802,13 @@ function detectLanguage(text) {
   const enPatterns = ['i', 'you', 'can', 'want', 'need', 'appointment', 'book', 'tomorrow', 'today', 'please', 'thank', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
   const enCount = enPatterns.filter(p => new RegExp(`\\b${p}\\b`).test(lower)).length;
   
-  const dePatterns = ['ich', 'sie', 'möchte', 'brauche', 'termin', 'buchen', 'morgen', 'heute', 'bitte', 'danke', 'montag', 'dienstag', 'mittwoch', 'donnerstag', 'freitag', 'samstag', 'sonntag'];
+  const dePatterns = [
+    'ich', 'sie', 'möchte', 'brauche', 'termin', 'buchen', 
+    'morgen', 'heute', 'bitte', 'danke', 
+    'montag', 'dienstag', 'mittwoch', 'donnerstag', 'freitag', 'samstag', 'sonntag',
+    'die', 'der', 'das', 'eine', 'ein', 'würde', 'gerne', 'auch', 'und', 'als',
+    'person', 'kein', 'normal', 'sitzen'
+  ];
   const deCount = dePatterns.filter(p => new RegExp(`\\b${p}\\b`).test(lower)).length;
   
   // Lower threshold for Vietnamese since it has unique characters
@@ -1178,8 +1327,8 @@ app.post('/chat', async (req, res) => {
       console.log(`🌍 First-time language detection: ${userLang}`);
       await updateCustomerState(contact_id, user_name, customerType, userLang);
     } else {
-      // Check if user switched language
-      const currentMsgLang = detectLanguage(user_message);
+      // Check if user switched language - USE AI for accuracy!
+      const currentMsgLang = await detectLanguageWithAI(user_message, history);
       if (currentMsgLang !== userLang) {
         const lower = user_message.toLowerCase();
         
