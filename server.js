@@ -437,11 +437,21 @@ The word has TWO COMPLETELY DIFFERENT MEANINGS:
    ❌ "Cho tôi xem mẫu" → NAIL DESIGNS
    ❌ "New designs please" → NAIL DESIGNS
 
+3️⃣ SWITCHING FROM MODEL TO REGULAR SERVICE:
+   → Customer explicitly wants regular professional service
+   
+   EXAMPLES:
+   🔄 "Tôi muốn đổi sang dịch vụ thường" → SWITCH TO NORMAL
+   🔄 "Không muốn làm khách mẫu nữa" → SWITCH TO NORMAL
+   🔄 "I want regular service instead" → SWITCH TO NORMAL
+   🔄 "Ich möchte normale Dienstleistung" → SWITCH TO NORMAL
+
 ═══════════════════════════════════════════════════════════════
 CLASSIFICATION RULES
 ═══════════════════════════════════════════════════════════════
 
 → MODELL: Customer ASKS ABOUT or WANTS model service
+→ NORMAL with contextType "switch_to_normal": Customer explicitly wants to switch FROM model TO regular service
 → NORMAL: Everything else
 
 ═══════════════════════════════════════════════════════════════
@@ -462,7 +472,7 @@ RESPONSE (JSON only)
   "classification": "MODELL" or "NORMAL",
   "confidence": 0-100,
   "reasoning": "Detailed explanation",
-  "contextType": "model_customer" or "nail_design" or "other"
+  "contextType": "model_customer" or "nail_design" or "switch_to_normal" or "other"
 }`;
 
     const response = await openai.chat.completions.create({
@@ -490,20 +500,7 @@ async function classifyCustomer(message, contactId, history, language) {
   const currentFlag = await getCurrentCustomerFlag(contactId);
   console.log(`📖 Current flag: ${currentFlag || 'NONE'}`);
   
-  // If already MODELL, keep unless greeting
-  if (currentFlag === 'MODELL') {
-    const greetingCheck = detectGreeting(message);
-    if (greetingCheck.isGreeting) {
-      console.log('🔄 Greeting - RESET: MODELL → NORMAL');
-      await updateCustomerFlag(contactId, 'NORMAL');
-      return 'NORMAL';
-    }
-    
-    console.log('✅ Keep flag: MODELL');
-    return 'MODELL';
-  }
-  
-  // Classify with AI
+  // Classify with AI (always check for type switching)
   console.log('🤖 Calling AI classification...');
   const aiResult = await aiClassifyCustomer(message, history, language);
   
@@ -513,8 +510,24 @@ async function classifyCustomer(message, contactId, history, language) {
   // Validation
   const CONFIDENCE_THRESHOLD = 75;
   
+  // If already MODELL, stay MODELL unless customer explicitly wants NORMAL
+  if (currentFlag === 'MODELL') {
+    // Check if customer wants to switch to NORMAL service
+    if (aiResult.classification === 'NORMAL' && 
+        aiResult.confidence >= CONFIDENCE_THRESHOLD &&
+        aiResult.contextType === 'switch_to_normal') {
+      console.log('🔄 Customer requests switch: MODELL → NORMAL');
+      await updateCustomerFlag(contactId, 'NORMAL');
+      return 'NORMAL';
+    }
+    
+    console.log('✅ Keep flag: MODELL (persistent)');
+    return 'MODELL';
+  }
+  
+  // If currently NORMAL, check if should upgrade to MODELL
   if (aiResult.confidence < CONFIDENCE_THRESHOLD) {
-    console.log(`⚠️ Low confidence - defaulting to NORMAL`);
+    console.log(`⚠️ Low confidence - keeping NORMAL`);
     return 'NORMAL';
   }
   
@@ -524,7 +537,7 @@ async function classifyCustomer(message, contactId, history, language) {
   }
   
   if (aiResult.classification === 'MODELL' && aiResult.confidence >= CONFIDENCE_THRESHOLD) {
-    console.log('✅ Updating flag: NORMAL → MODELL');
+    console.log('✅ Updating flag: NORMAL → MODELL (permanent)');
     await updateCustomerFlag(contactId, 'MODELL');
     return 'MODELL';
   }
@@ -624,11 +637,8 @@ app.post('/webhook', async (req, res) => {
     
     console.log(`\n📌 Language: ${userLang}`);
     
-    // Reset on greeting
-    if (langResult.shouldReset) {
-      console.log('🔄 GREETING RESET - Resetting to NORMAL');
-      await updateCustomerFlag(contact_id, 'NORMAL');
-    }
+    // NOTE: Greeting detection updates language but does NOT reset customer type
+    // Customer type (MODELL/NORMAL) persists across conversations
     
     // LAYER 2: Customer Classification
     const customerType = await classifyCustomer(user_message, contact_id, history, userLang);
