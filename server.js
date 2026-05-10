@@ -519,8 +519,13 @@ The word has TWO COMPLETELY DIFFERENT MEANINGS:
    ✅ "Tôi muốn làm khách mẫu" → WANTS MODEL SERVICE
    ✅ "How much is model service?" → MODEL SERVICE
    ✅ "Was kostet Modellkunde?" → MODEL SERVICE
+   ✅ "Ich interessiere mich für Modell" → MODEL SERVICE
+   ✅ "Ich interessiere mich für das Modellangebot" → MODEL SERVICE
+   ✅ "Modell buchen" / "Modelltermin" → MODEL SERVICE
+   ✅ "Bin ich als Modell geeignet?" → MODEL SERVICE
    ✅ "Giá mẫu?" [in service context] → MODEL SERVICE
    ✅ "Azubi" / "Auszubildende" → MODEL SERVICE
+   ✅ "model customer" / "modell kunde" → MODEL SERVICE
 
 2️⃣ NAIL DESIGN (Mẫu nail):
    → Design patterns, styles
@@ -588,12 +593,60 @@ RESPONSE (JSON only)
   }
 }
 
+// Keywords that always indicate MODELL intent (no AI needed)
+// Grouped by language for maintainability
+const MODELL_KEYWORDS = [
+  // ── German ────────────────────────────────────────────────────
+  'modell',           // catches modellkunde, modelltermin, modellplatz, modellpreis etc.
+  'azubi',
+  'auszubildende',
+  'auszubildenden',
+  'schüler',          // "von einem Schüler"
+  'übungsmodell',
+  'lernmodell',
+  'günstiger service',
+  'günstiger termin',
+  'preiswert',        // "preiswerte Behandlung"
+
+  // ── English ───────────────────────────────────────────────────
+  'model service',
+  'model customer',
+  'model appointment',
+  'practice model',
+  'training model',
+  'student model',
+  'student practice',
+  'model client',
+  'model nail',       // "model nail appointment"
+  'cheap service',    // uncommon but possible
+  'discounted service',
+
+  // ── Vietnamese ────────────────────────────────────────────────
+  'khách mẫu',
+  'làm mẫu',
+  'mẫu thực hành',
+  'dịch vụ mẫu',
+  'giá mẫu',
+  'học viên',
+  // Note: 'thực hành', 'sinh viên', 'rẻ hơn', 'giá rẻ' intentionally excluded
+  // — too broad, high false-positive risk → let AI handle these
+];
+
 async function classifyCustomer(message, contactId, history, language) {
   console.log('\n🎯 === CUSTOMER CLASSIFICATION ===');
   
   const currentFlag = await getCurrentCustomerFlag(contactId);
   console.log(`📖 Current flag: ${currentFlag || 'NONE'}`);
-  
+
+  // ── Keyword shortcut: skip AI if message clearly mentions model service ──
+  const msgLower = message.toLowerCase();
+  const hasModellKeyword = MODELL_KEYWORDS.some(k => msgLower.includes(k));
+  if (hasModellKeyword && currentFlag !== 'NORMAL') {
+    console.log('✅ Keyword match → MODELL (no AI call needed)');
+    await updateCustomerFlag(contactId, 'MODELL');
+    return 'MODELL';
+  }
+
   // Classify with AI (always check for type switching)
   console.log('🤖 Calling AI classification...');
   const aiResult = await aiClassifyCustomer(message, history, language);
