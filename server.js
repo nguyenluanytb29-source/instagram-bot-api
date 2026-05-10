@@ -651,9 +651,14 @@ async function classifyCustomer(message, contactId, history, language) {
   // ── Keyword shortcut: skip AI if message clearly mentions model service ──
   const msgLower = message.toLowerCase();
   const hasModellKeyword = MODELL_KEYWORDS.some(k => msgLower.includes(k));
-  if (hasModellKeyword && currentFlag !== 'NORMAL') {
-    console.log('✅ Keyword match → MODELL (no AI call needed)');
-    await updateCustomerFlag(contactId, 'MODELL');
+  if (hasModellKeyword) {
+    if (currentFlag !== 'MODELL') {
+      // NORMAL or NONE → upgrade to MODELL
+      console.log('✅ Keyword match → MODELL (no AI call needed)');
+      await updateCustomerFlag(contactId, 'MODELL');
+    } else {
+      console.log('✅ Keyword match → keep MODELL');
+    }
     return 'MODELL';
   }
 
