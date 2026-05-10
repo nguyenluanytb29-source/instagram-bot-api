@@ -1071,17 +1071,27 @@ Response (2-4 sentences, ${langName}):`;
  * (Step 1 with price list and "Wäre das für Sie in Ordnung?")
  */
 function hasModellInfoBeenSent(history) {
-  // Match ONLY strings exclusive to the scripted STEP 1 messages.
-  // We check for the bullet "0,50 € pro Steinchen" which AI never generates verbatim,
-  // AND exclude any message that contains the generic booking link (AI fallback signature).
-  return history.some(msg =>
+  // Use BOTH unique anchors together (AND logic) to avoid false positives.
+  // STEP 1 scripted DE contains BOTH "0,50 € pro Steinchen" AND "Natur (klar): 15"
+  // AI cannot generate both these exact price bullets simultaneously.
+  const matchDE = history.some(msg =>
     msg.role === 'assistant' &&
-    !msg.message.includes('https://nailounge101.setmore.com/') &&  // exclude AI fallback
-    (msg.message.includes('0,50 € pro Steinchen') ||               // DE price bullet
-     msg.message.includes('Wäre das für Sie in Ordnung') ||        // DE closing
-     msg.message.includes('Does that sound good to you') ||        // EN closing
-     msg.message.includes('Bạn thấy ổn không'))                    // VI closing
+    msg.message.includes('0,50 € pro Steinchen') &&
+    msg.message.includes('Natur (klar): 15')
   );
+  const matchEN = history.some(msg =>
+    msg.role === 'assistant' &&
+    msg.message.includes('€0.50 per rhinestone') &&
+    msg.message.includes('Natural (clear): €15')
+  );
+  const matchVI = history.some(msg =>
+    msg.role === 'assistant' &&
+    msg.message.includes('0,50 € mỗi đá đính') &&
+    msg.message.includes('Tự nhiên (trong): 15 €')
+  );
+  const result = matchDE || matchEN || matchVI;
+  console.log(`📋 hasModellInfoBeenSent: DE=${matchDE} EN=${matchEN} VI=${matchVI} → ${result}`);
+  return result;
 }
 
 /**
