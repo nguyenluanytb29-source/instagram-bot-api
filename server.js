@@ -41,8 +41,12 @@ const openai = new OpenAI({
 // ── STEP 1: Initial service info ─────────────────────────────────────────────
 
 const MODELL_STEP1 = {
-  de: `Guten Tag! 😊 Vielen Dank für Ihr Interesse an unseren Dienstleistungen. Zurzeit suchen wir noch Modelle für unsere Schüler. Der Preis richtet sich nach dem Design:
+  de: `Guten Tag! 😊
 
+Vielen Dank für Ihr Interesse an unseren Dienstleistungen.
+Zurzeit suchen wir noch Modelle für unsere Schüler.
+
+Der Preis richtet sich nach dem Design:
 • Natur (klar): 15 €
 • Natur Make-up, French, Farbe, Glitzer, Ombre oder Cat-Eye: 20 €
 
@@ -50,7 +54,11 @@ Für aufwendigere Designs berechnen wir zusätzlich:
 • 1 € pro Design-Nagel
 • 0,50 € pro Steinchen
 
-Bitte beachten Sie: Da die Behandlung von einem Schüler durchgeführt wird, kann es sein, dass sehr komplizierte Designs nicht möglich sind. Die Behandlungszeit beträgt normalerweise etwa 2–3 Stunden. Das Ergebnis ist eventuell nicht perfekt, da es sich um eine Übung handelt – wir möchten Sie darüber im Voraus informieren. Falls etwas nicht zufriedenstellend ist, bieten wir innerhalb von 3 Tagen eine kostenlose Nachbesserung an.
+Bitte beachten Sie:
+Da die Behandlung von einem Schüler durchgeführt wird, kann es sein, dass sehr komplizierte Designs nicht möglich sind.
+Die Behandlungszeit beträgt normalerweise etwa 2–3 Stunden.
+Das Ergebnis ist eventuell nicht perfekt, da es sich um eine Übung handelt – wir möchten Sie darüber im Voraus informieren.
+Falls etwas nicht zufriedenstellend ist, bieten wir innerhalb von 3 Tagen eine kostenlose Nachbesserung an.
 
 Wäre das für Sie in Ordnung? 💅 Wenn alles für Sie passt, können wir gerne einen Termin vereinbaren.`,
 
@@ -84,18 +92,22 @@ Bạn thấy ổn không? 💅 Nếu mọi thứ phù hợp, chúng ta có thể
 // ── STEP 2: Booking link (after customer agrees) ──────────────────────────────
 
 const MODELL_STEP2 = {
-  de: `Super, das freut uns sehr! 🎉
+  de: `Super, das freut uns sehr! 😊
 
-Da wir nur wenige Modellplätze haben, empfehlen wir Ihnen, den Termin direkt online zu buchen. Hier können Sie Ihren Termin reservieren:
+Da wir nur wenige Modellplätze haben, empfehlen wir Ihnen, den Termin direkt online zu buchen.
+Hier können Sie Ihren Termin reservieren:
 https://nailounge101.setmore.com/team/jeeZoVSakEm9KfPuHaC7ZwfaPN9CKI1R
 
-Modell-Termine werden ausschließlich online gebucht und müssen im Voraus bezahlt werden, damit der Termin verbindlich für Sie reserviert ist. Ohne Vorauszahlung kann der Termin leider nicht reserviert werden. Nur vollständig bezahlte Termine werden bestätigt.
+Modell-Termine werden ausschließlich online gebucht und müssen im Voraus bezahlt werden, damit der Termin verbindlich für Sie reserviert ist.
+Ohne Vorauszahlung kann der Termin leider nicht reserviert werden.
+Nur vollständig bezahlte Termine werden bestätigt.
 
 Bitte beachten Sie:
 • Terminbuchung nur online möglich.
 • Vorauszahlung ist erforderlich, um den Termin verbindlich zu reservieren.
 
-Stornierungsbedingungen: Wenn Sie nicht zum Termin erscheinen oder weniger als 24 Stunden vorher absagen, ist eine Rückerstattung leider nicht möglich.
+Stornierungsbedingungen:
+Wenn Sie nicht zum Termin erscheinen oder weniger als 24 Stunden vorher absagen, ist eine Rückerstattung leider nicht möglich.
 
 Die Plätze für Modelle sind begrenzt und oft schnell vergeben.
 
@@ -139,9 +151,11 @@ Chúng tôi mong được đón bạn tại Nailounge101! 💅`
 // ── STEP 3: Prepayment explanation ───────────────────────────────────────────
 
 const MODELL_STEP3 = {
-  de: `Wir bitten um Vorauszahlung, da Modell-Termine sehr lange dauern (ca. 2–3 Stunden) und wir nur wenige Plätze für unsere Schüler haben. So können wir sicherstellen, dass der Termin wirklich für Sie reserviert ist.
+  de: `Wir bitten um Vorauszahlung, da Modell-Termine sehr lange dauern (ca. 2–3 Stunden) und wir nur wenige Plätze für unsere Schüler haben.
+So können wir sicherstellen, dass der Termin wirklich für Sie reserviert ist.
 
-Vielen Dank für Ihr Verständnis! 😊 Leider hatten wir in der Vergangenheit viele Termin-Ausfälle, daher ist die Vorauszahlung für Modell-Termine notwendig.`,
+Vielen Dank für Ihr Verständnis! 😊
+Leider hatten wir in der Vergangenheit viele Termin-Ausfälle, daher ist die Vorauszahlung für Modell-Termine notwendig.`,
 
   en: `We ask for prepayment because model appointments take a long time (approx. 2–3 hours) and we only have a few spots available for our students. This ensures your appointment is genuinely reserved for you.
 
@@ -631,6 +645,60 @@ async function classifyCustomer(message, contactId, history, language) {
 // ═══════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════
+// BOT PAUSE HELPERS (/stop keyword)
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Set bot pause for a contact for 24 hours.
+ * Uses conversation_summary table with a dedicated pause column,
+ * or a simple upsert into a bot_pause table created on first use.
+ */
+async function pauseBot(contactId) {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS bot_pause (
+        contact_id TEXT PRIMARY KEY,
+        paused_until TIMESTAMPTZ NOT NULL
+      )
+    `);
+    const pausedUntil = new Date(Date.now() + 24 * 60 * 60 * 1000); // +24h
+    await pool.query(`
+      INSERT INTO bot_pause (contact_id, paused_until)
+      VALUES ($1, $2)
+      ON CONFLICT (contact_id)
+      DO UPDATE SET paused_until = $2
+    `, [contactId, pausedUntil]);
+    console.log(`⏸️  Bot paused for ${contactId} until ${pausedUntil.toISOString()}`);
+  } catch (error) {
+    console.error('Error pauseBot:', error);
+  }
+}
+
+/**
+ * Check if bot is currently paused for a contact.
+ * Returns true if still within the 24h window.
+ */
+async function isBotPaused(contactId) {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS bot_pause (
+        contact_id TEXT PRIMARY KEY,
+        paused_until TIMESTAMPTZ NOT NULL
+      )
+    `);
+    const result = await pool.query(
+      'SELECT paused_until FROM bot_pause WHERE contact_id = $1',
+      [contactId]
+    );
+    if (result.rows.length === 0) return false;
+    return new Date(result.rows[0].paused_until) > new Date();
+  } catch (error) {
+    console.error('Error isBotPaused:', error);
+    return false; // fail open — bot continues if DB error
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // NORMAL CUSTOMER FLOW HELPERS
 // ═══════════════════════════════════════════════════════════════
 
@@ -644,29 +712,37 @@ function isReturningCustomer(history) {
 }
 
 /**
- * Use AI to detect if the customer is trying to book an appointment
- * and extract the requested date/time if present.
- * Returns: { isBooking: bool, datetime: string|null }
+ * Use AI to analyse a customer message and detect:
+ * - isBooking      : customer wants to make an appointment
+ * - datetime       : extracted date/time string (null if not mentioned)
+ * - isSelfBooking  : customer says they will book themselves via link
+ * - isAssistedBooking: customer explicitly asks us to book for them
+ * - summary        : one German sentence describing the request
  */
-async function detectBookingRequest(message, language, history) {
+async function detectBookingIntent(message, history) {
   try {
     const recentHistory = history.slice(-6).map(m => `[${m.role}]: ${m.message}`).join('\n');
-    const prompt = `You are analyzing a message from a nail salon customer to detect booking intent.
+    const prompt = `You are analysing a message from a nail salon customer.
 
 Conversation context:
 ${recentHistory || '[No prior messages]'}
 
 Current message: "${message}"
 
-Task:
-1. Does the customer want to book / request an appointment? (yes/no)
-2. If yes, extract the requested date and/or time from the message. Use 24h format for time. If only a day name is given (e.g. "Montag", "Monday", "thứ 2"), note it as-is. If no date/time mentioned, set datetime to null.
+Determine:
+1. isBooking: does the customer want to make / ask about an appointment? (true/false)
+2. datetime: extract requested date and/or time (24h format). Day names are fine as-is. null if not mentioned.
+3. isSelfBooking: does the customer say they will book themselves (e.g. "I'll book via the link", "ich buche selbst", "tự đặt")? (true/false)
+4. isAssistedBooking: does the customer explicitly ask us to book FOR them (e.g. "please book for me", "buch für mich", "đặt giùm mình")? (true/false)
+5. summary: one short sentence in German describing the booking request.
 
-Respond ONLY with valid JSON:
+Respond ONLY with valid JSON (no markdown):
 {
   "isBooking": true or false,
-  "datetime": "extracted date/time string" or null,
-  "summary": "one short sentence describing the request in German"
+  "datetime": "string or null",
+  "isSelfBooking": true or false,
+  "isAssistedBooking": true or false,
+  "summary": "German sentence"
 }`;
 
     const response = await openai.chat.completions.create({
@@ -678,13 +754,27 @@ Respond ONLY with valid JSON:
 
     return JSON.parse(response.choices[0].message.content);
   } catch (error) {
-    console.error('Error detectBookingRequest:', error);
-    return { isBooking: false, datetime: null, summary: '' };
+    console.error('Error detectBookingIntent:', error);
+    return { isBooking: false, datetime: null, isSelfBooking: false, isAssistedBooking: false, summary: '' };
   }
 }
 
 /**
- * Append booking info to the conversation_summary so staff can see it.
+ * Check if bot has already sent the "self-book or assisted?" question in this conversation.
+ */
+function hasAskedBookingPreference(history) {
+  return history.some(msg =>
+    msg.role === 'assistant' &&
+    (msg.message.includes('nailounge101.setmore.com') ||
+     msg.message.includes('selbst buchen') ||
+     msg.message.includes('book yourself') ||
+     msg.message.includes('tự đặt') ||
+     msg.message.includes('đặt giùm'))
+  );
+}
+
+/**
+ * Append assisted booking request to conversation_summary for staff.
  */
 async function saveBookingToSummary(contactId, userName, bookingInfo) {
   try {
@@ -694,9 +784,7 @@ async function saveBookingToSummary(contactId, userName, bookingInfo) {
     );
     const existingText = existing.rows.length > 0 ? existing.rows[0].summary || '' : '';
     const bookingNote = `[TERMINWUNSCH] ${bookingInfo.datetime ? bookingInfo.datetime + ' — ' : ''}${bookingInfo.summary}`;
-    const newSummary = existingText
-      ? `${existingText}\n${bookingNote}`
-      : bookingNote;
+    const newSummary = existingText ? `${existingText}\n${bookingNote}` : bookingNote;
 
     await pool.query(`
       INSERT INTO conversation_summary (contact_id, user_name, summary, last_updated)
@@ -705,10 +793,145 @@ async function saveBookingToSummary(contactId, userName, bookingInfo) {
       DO UPDATE SET summary = $3, user_name = $2, last_updated = NOW()
     `, [contactId, userName, newSummary]);
 
-    console.log('✅ Booking note saved to summary');
+    console.log('✅ Assisted booking note saved to summary');
   } catch (error) {
     console.error('Error saveBookingToSummary:', error);
   }
+}
+
+/**
+ * Validate a booking datetime string extracted by AI.
+ * Returns: { valid: bool, reason: 'past' | 'sunday' | 'outside_hours' | null }
+ *
+ * Opening hours:
+ *   Mon–Fri : 09:30–19:00
+ *   Saturday: 09:30–16:00
+ *   Sunday  : CLOSED
+ */
+function validateBookingDatetime(datetimeStr) {
+  if (!datetimeStr) return { valid: true, reason: null };
+
+  const now = new Date();
+
+  // Normalise German/Vietnamese day names → English
+  const dayMap = {
+    'montag': 'Monday', 'dienstag': 'Tuesday', 'mittwoch': 'Wednesday',
+    'donnerstag': 'Thursday', 'freitag': 'Friday', 'samstag': 'Saturday',
+    'sonntag': 'Sunday',
+    'thứ 2': 'Monday', 'thứ hai': 'Monday',
+    'thứ 3': 'Tuesday', 'thứ ba': 'Tuesday',
+    'thứ 4': 'Wednesday', 'thứ tư': 'Wednesday',
+    'thứ 5': 'Thursday', 'thứ năm': 'Thursday',
+    'thứ 6': 'Friday', 'thứ sáu': 'Friday',
+    'thứ 7': 'Saturday', 'thứ bảy': 'Saturday',
+    'chủ nhật': 'Sunday', 'cn': 'Sunday'
+  };
+
+  let normalised = datetimeStr.toLowerCase();
+  for (const [foreign, english] of Object.entries(dayMap)) {
+    normalised = normalised.replace(foreign, english);
+  }
+  // "9h" / "9h30" → "9:00" / "9:30"
+  normalised = normalised.replace(/(\d{1,2})h(\d{2})?/g, (_, h, m) => `${h}:${m || '00'}`);
+
+  // ── Sunday check by keyword ──────────────────────────────────────────────
+  const sundayKeywords = ['sunday', 'sonntag', 'chủ nhật', ' cn '];
+  if (sundayKeywords.some(k => normalised.includes(k))) {
+    return { valid: false, reason: 'sunday' };
+  }
+
+  // ── Detect if it's a Saturday ────────────────────────────────────────────
+  const isSaturdayKeyword = ['saturday', 'samstag', 'thứ 7', 'thứ bảy'].some(k => normalised.includes(k));
+
+  // ── Extract time ─────────────────────────────────────────────────────────
+  const timeMatch = normalised.match(/(\d{1,2}):(\d{2})/);
+  const hour   = timeMatch ? parseInt(timeMatch[1], 10) : null;
+  const minute = timeMatch ? parseInt(timeMatch[2], 10) : 0;
+
+  if (hour !== null) {
+    const totalMinutes = hour * 60 + minute;
+    const openMinutes  = 9 * 60 + 30;  // 09:30
+
+    // Saturday closes at 16:00, Mon–Fri closes at 19:00
+    let closeMinutes;
+    if (isSaturdayKeyword) {
+      closeMinutes = 16 * 60;
+    } else {
+      closeMinutes = 19 * 60;
+    }
+
+    if (totalMinutes < openMinutes || totalMinutes >= closeMinutes) {
+      return { valid: false, reason: 'outside_hours' };
+    }
+  }
+
+  // ── Full date parse for past-date and Saturday-by-date checks ────────────
+  const parsed = new Date(normalised);
+  if (!isNaN(parsed.getTime())) {
+    const dayOfWeek = parsed.getDay(); // 0=Sun, 6=Sat
+
+    if (dayOfWeek === 0) return { valid: false, reason: 'sunday' };
+
+    // Re-check time against Saturday closing if day resolved to Saturday
+    if (dayOfWeek === 6 && hour !== null) {
+      const totalMinutes = hour * 60 + minute;
+      if (totalMinutes >= 16 * 60) return { valid: false, reason: 'outside_hours' };
+    }
+
+    // Past-date check (allow same-day)
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (parsed < startOfToday) return { valid: false, reason: 'past' };
+  }
+
+  return { valid: true, reason: null };
+}
+
+/**
+ * Build a friendly "invalid datetime" reply in the customer's language.
+ */
+function buildInvalidDatetimeReply(reason, lang, returning) {
+  const hours = 'Mo–Fr: 09:30–19:00 Uhr | Sa: 09:30–16:00 Uhr | So: geschlossen';
+  const hoursEn = 'Mon–Fri: 09:30–19:00 | Sat: 09:30–16:00 | Sun: closed';
+  const hoursVi = 'Thứ 2–Thứ 6: 9:30–19:00 | Thứ 7: 9:30–16:00 | Chủ nhật: nghỉ';
+
+  const messages = {
+    past: {
+      de: returning
+        ? `Hey, das Datum liegt leider schon in der Vergangenheit 😅 Wann möchtest du kommen? Wir sind ${hours}.`
+        : `Das gewünschte Datum liegt leider in der Vergangenheit. Wann dürfen wir Sie erwarten? Unsere Öffnungszeiten: ${hours}.`,
+      en: returning
+        ? `Hey, that date has already passed 😅 When would you like to come? We're open ${hoursEn}.`
+        : `The date you mentioned has already passed. When would you like to visit us? Our opening hours: ${hoursEn}.`,
+      vi: returning
+        ? `Hey, ngày đó đã qua rồi nha 😅 Bạn muốn đến ngày nào? Mình mở cửa ${hoursVi}.`
+        : `Ngày bạn chọn đã qua rồi ạ. Bạn muốn đặt lịch vào ngày nào? Giờ làm việc của mình: ${hoursVi}.`
+    },
+    sunday: {
+      de: returning
+        ? `Sonntags haben wir leider zu 😔 Wir sind ${hours} – magst du einen anderen Tag wählen?`
+        : `Sonntags sind wir leider geschlossen. Unsere Öffnungszeiten: ${hours}. Wann darf ich Sie einplanen?`,
+      en: returning
+        ? `We're closed on Sundays 😔 We're open ${hoursEn} – can you pick another day?`
+        : `Unfortunately we're closed on Sundays. Our opening hours: ${hoursEn}. When would you like to come?`,
+      vi: returning
+        ? `Chủ nhật mình nghỉ rồi 😔 Mình mở cửa ${hoursVi} – bạn chọn ngày khác nhé?`
+        : `Chủ nhật chúng mình nghỉ ạ. Giờ làm việc: ${hoursVi}. Bạn muốn đặt ngày nào khác không?`
+    },
+    outside_hours: {
+      de: returning
+        ? `Zu der Uhrzeit haben wir leider nicht geöffnet 😔 Wir sind ${hours} – magst du eine andere Uhrzeit wählen?`
+        : `Zu dieser Uhrzeit sind wir leider nicht geöffnet. Unsere Öffnungszeiten: ${hours}. Wann darf ich Sie einplanen?`,
+      en: returning
+        ? `We're not open at that time 😔 Our hours are ${hoursEn} – can you pick another time?`
+        : `We're not open at that time. Our opening hours: ${hoursEn}. When would you like to come?`,
+      vi: returning
+        ? `Giờ đó mình chưa mở cửa 😔 Giờ làm việc: ${hoursVi} – bạn chọn giờ khác nhé?`
+        : `Giờ đó chúng mình chưa mở cửa ạ. Giờ làm việc: ${hoursVi}. Bạn muốn đặt giờ nào khác không?`
+    }
+  };
+
+  const map = messages[reason] || messages.outside_hours;
+  return (map[lang] || map.de);
 }
 
 async function generateAIResponse(message, history, language, customerType, isReturning = false) {
@@ -737,7 +960,7 @@ CRITICAL RULES:
 
 SALON INFO:
 ${serviceInfo}
-Hours: Mon-Sat 10:00-18:00 | Sun: CLOSED
+Hours: Mon–Fri 09:30–19:00 | Sat 09:30–16:00 | Sun: CLOSED
 Booking: https://nailounge101.setmore.com/
 
 CONVERSATION HISTORY:
@@ -868,7 +1091,28 @@ app.post('/webhook', async (req, res) => {
     console.log(`Contact: ${contact_id} (${user_name})`);
     console.log(`Message: "${user_message}"`);
     console.log('====================================\n');
-    
+
+    // ── /stop keyword: staff triggers 24h pause ──────────────────
+    if (user_message.trim().toLowerCase() === '/stop') {
+      await pauseBot(contact_id);
+      return res.json({
+        bot_response: 'EMPTY_RESPONSE',
+        bot_response_2: 'EMPTY_RESPONSE',
+        bot_response_3: 'EMPTY_RESPONSE'
+      });
+    }
+
+    // ── Pause check: bot silent if within 24h cooldown ───────────
+    const paused = await isBotPaused(contact_id);
+    if (paused) {
+      console.log(`⏸️  Bot paused for ${contact_id} — skipping response`);
+      return res.json({
+        bot_response: 'EMPTY_RESPONSE',
+        bot_response_2: 'EMPTY_RESPONSE',
+        bot_response_3: 'EMPTY_RESPONSE'
+      });
+    }
+
     // Ensure customer record exists
     await ensureCustomerRecord(contact_id, user_name);
     
@@ -922,45 +1166,116 @@ app.post('/webhook', async (req, res) => {
       const returning = isReturningCustomer(history);
       console.log(`\n📌 Returning customer: ${returning}`);
 
-      // Check if customer is trying to book an appointment
-      const bookingResult = await detectBookingRequest(user_message, userLang, history);
-      console.log(`📌 Booking detected: ${bookingResult.isBooking}, datetime: ${bookingResult.datetime}`);
+      const bookingIntent = await detectBookingIntent(user_message, history);
+      console.log(`📌 Booking intent:`, JSON.stringify(bookingIntent));
 
-      if (bookingResult.isBooking) {
-        // Save booking request to summary for staff
-        await saveBookingToSummary(contact_id, user_name, bookingResult);
+      const askedPrefAlready = hasAskedBookingPreference(history);
 
-        // Generate confirmation reply in customer's language
-        const bookingConfirmPrompts = {
-          de: `Bestätige dem Kunden kurz und herzlich, dass du den Terminwunsch (${bookingResult.datetime || 'ohne genaue Zeit'}) notiert hast und dass ein Mitarbeiter den Kalender prüfen und sich melden wird. Sei warm${returning ? ' und vertraut' : ''}. Max 3 Sätze auf Deutsch.`,
-          en: `Briefly and warmly confirm to the customer that you've noted their appointment request (${bookingResult.datetime || 'no specific time given'}) and that a team member will check the calendar and get back to them. Be friendly${returning ? ' and casual' : ''}. Max 3 sentences in English.`,
-          vi: `Xác nhận ngắn gọn và thân thiện với khách rằng bạn đã ghi nhận yêu cầu đặt lịch (${bookingResult.datetime || 'chưa có thời gian cụ thể'}) và nhân viên sẽ kiểm tra lịch rồi phản hồi lại. Tone${returning ? ' thân mật' : ' thân thiện'}. Tối đa 3 câu bằng tiếng Việt.`
+      // ── CASE A: Customer says they'll book themselves ─────────────
+      if (bookingIntent.isSelfBooking || (askedPrefAlready && !bookingIntent.isAssistedBooking && bookingIntent.isBooking === false)) {
+        const thankYou = {
+          de: returning
+            ? `Super, danke dir! 😊 Wenn du Fragen hast, meld dich einfach. Bis bald! 💅`
+            : `Super, danke! 😊 Falls du Fragen hast, sind wir gerne für dich da. Bis bald! 💅`,
+          en: returning
+            ? `Awesome, thanks! 😊 Give us a shout if you need anything. See you soon! 💅`
+            : `Great, thank you! 😊 Feel free to reach out if you have any questions. See you soon! 💅`,
+          vi: returning
+            ? `Tuyệt vời, cảm ơn bạn nhé! 😊 Có gì cứ nhắn mình. Hẹn gặp bạn sớm! 💅`
+            : `Cảm ơn bạn! 😊 Nếu có thắc mắc gì cứ nhắn mình nhé. Hẹn gặp bạn! 💅`
         };
+        botResponse = thankYou[userLang] || thankYou.de;
+        console.log('📤 Self-booking thank you sent');
 
-        const confirmPrompt = bookingConfirmPrompts[userLang] || bookingConfirmPrompts.de;
+      // ── CASE B: Customer explicitly asks us to book for them ──────
+      } else if (bookingIntent.isAssistedBooking) {
+        const validationB = validateBookingDatetime(bookingIntent.datetime);
+        if (!validationB.valid) {
+          botResponse = buildInvalidDatetimeReply(validationB.reason, userLang, returning);
+          console.log(`📤 CASE B: invalid datetime (${validationB.reason}), asking to pick again`);
+        } else {
+        await saveBookingToSummary(contact_id, user_name, bookingIntent);
+        const assisted = {
+          de: returning
+            ? `Klar, ich kümmere mich darum! 😊 Ich habe deinen Terminwunsch${bookingIntent.datetime ? ' für ' + bookingIntent.datetime : ''} notiert. Unser Team prüft den Kalender und meldet sich gleich bei dir. Danke! 💅`
+            : `Alles klar! Ich habe Ihren Terminwunsch${bookingIntent.datetime ? ' für ' + bookingIntent.datetime : ''} notiert. Unser Team prüft den Kalender und meldet sich in Kürze bei Ihnen. Vielen Dank! 💅`,
+          en: returning
+            ? `Of course, I'll sort that for you! 😊 I've noted your request${bookingIntent.datetime ? ' for ' + bookingIntent.datetime : ''}. Our team will check the calendar and get back to you shortly. Thanks! 💅`
+            : `Sure thing! I've noted your appointment request${bookingIntent.datetime ? ' for ' + bookingIntent.datetime : ''}. Our team will check the calendar and get back to you soon. Thank you! 💅`,
+          vi: returning
+            ? `Được rồi, mình lo cho bạn nhé! 😊 Mình đã ghi nhận lịch${bookingIntent.datetime ? ' ' + bookingIntent.datetime : ''} cho bạn. Nhân viên sẽ kiểm tra lịch và phản hồi sớm. Cảm ơn bạn! 💅`
+            : `Được ạ! Mình đã ghi nhận yêu cầu đặt lịch${bookingIntent.datetime ? ' ' + bookingIntent.datetime : ''} của bạn. Nhân viên sẽ kiểm tra lịch và phản hồi lại bạn sớm nhé. Cảm ơn bạn! 💅`
+        };
+        botResponse = assisted[userLang] || assisted.de;
+        console.log('📤 Assisted booking confirmed, summary saved');
+        } // end validationB.valid
 
-        try {
-          const confirmRes = await openai.chat.completions.create({
-            model: 'gpt-4o',
-            messages: [{ role: 'system', content: confirmPrompt }],
-            temperature: returning ? 0.4 : 0.2,
-            max_tokens: 200
-          });
-          botResponse = confirmRes.choices[0].message.content.trim();
-        } catch (err) {
-          // Fallback hardcoded confirmation
-          const fallbackConfirm = {
-            de: `Alles klar${returning ? ' 😊' : '!'} Ich habe deinen Terminwunsch für ${bookingResult.datetime || 'den gewünschten Termin'} notiert. Unser Team prüft den Kalender und meldet sich bei dir. Danke! 💅`,
-            en: `Got it${returning ? ' 😊' : '!'} I've noted your appointment request for ${bookingResult.datetime || 'your preferred time'}. Our team will check the calendar and get back to you. Thanks! 💅`,
-            vi: `Được rồi${returning ? ' 😊' : '!'} Mình đã ghi nhận yêu cầu đặt lịch ${bookingResult.datetime || 'của bạn'} rồi nhé. Nhân viên sẽ kiểm tra lịch và phản hồi lại bạn sớm. Cảm ơn bạn! 💅`
+      // ── CASE C: Customer wants to book ───────────────────────────
+      } else if (bookingIntent.isBooking && !askedPrefAlready) {
+        const BOOKING_LINK = 'https://nailounge101.setmore.com/';
+
+        if (bookingIntent.datetime) {
+          // C1: Customer gave date/time → validate, then confirm + save + thank
+          const validationC1 = validateBookingDatetime(bookingIntent.datetime);
+          if (!validationC1.valid) {
+            botResponse = buildInvalidDatetimeReply(validationC1.reason, userLang, returning);
+            console.log(`📤 CASE C1: invalid datetime (${validationC1.reason}), asking to pick again`);
+          } else {
+          await saveBookingToSummary(contact_id, user_name, bookingIntent);
+          const confirmC1 = {
+            de: returning
+              ? `Super, ${bookingIntent.datetime} ist notiert! 😊 Das Team schaut in den Kalender und meldet sich bei dir. Danke! 💅`
+              : `Alles klar! ${bookingIntent.datetime} habe ich notiert. Das Team prüft den Kalender und meldet sich in Kürze bei Ihnen. Vielen Dank! 💅`,
+            en: returning
+              ? `Got it, ${bookingIntent.datetime} is noted! 😊 The team will check the calendar and get back to you. Thanks! 💅`
+              : `Perfect! I've noted ${bookingIntent.datetime}. Our team will check the calendar and get back to you shortly. Thank you! 💅`,
+            vi: returning
+              ? `Oke, mình đã ghi nhận ${bookingIntent.datetime} rồi! 😊 Nhân viên sẽ check lịch và phản hồi lại bạn nhé. Cảm ơn bạn! 💅`
+              : `Được ạ! Mình đã ghi nhận ${bookingIntent.datetime}. Nhân viên sẽ kiểm tra lịch và phản hồi lại bạn sớm. Cảm ơn bạn! 💅`
           };
-          botResponse = fallbackConfirm[userLang] || fallbackConfirm.de;
-        }
-        console.log('📤 Booking confirmation sent');
+          botResponse = confirmC1[userLang] || confirmC1.de;
+          console.log('📤 CASE C1: datetime given → confirmed + saved, no link');
+          } // end validationC1.valid
 
+        } else {
+          // C2: No date/time yet → send link + ask if they want us to book for them
+          const askC2 = {
+            de: returning
+              ? `Hey! 😊 Du kannst direkt über unseren Link buchen – das geht am schnellsten:
+${BOOKING_LINK}
+
+Oder sag mir einfach wann du kommen möchtest und ich merke es für dich vor!`
+              : `Hallo! 😊 Sie können direkt über unseren Link buchen:
+${BOOKING_LINK}
+
+Oder teilen Sie uns Ihren Wunschtermin mit – sollen wir ihn für Sie vormerken?`,
+            en: returning
+              ? `Hey! 😊 You can book directly via our link – quickest way:
+${BOOKING_LINK}
+
+Or just tell me when you'd like to come and I'll note it down for you!`
+              : `Hello! 😊 You can book directly via our link:
+${BOOKING_LINK}
+
+Or let us know your preferred date and time – would you like us to book it for you?`,
+            vi: returning
+              ? `Hey! 😊 Bạn có thể tự đặt lịch qua link này cho nhanh:
+${BOOKING_LINK}
+
+Hoặc cho mình biết ngày giờ bạn muốn đến, mình đặt giùm cho nhé!`
+              : `Xin chào! 😊 Bạn có thể đặt lịch trực tiếp qua link:
+${BOOKING_LINK}
+
+Hoặc cho chúng mình biết ngày giờ bạn muốn, bạn có muốn mình đặt giùm không?`
+          };
+          botResponse = askC2[userLang] || askC2.de;
+          console.log('📤 CASE C2: no datetime, sending link + asking if assisted');
+        }
+
+      // ── CASE D: Regular conversation ──────────────────────────────
       } else {
-        // Regular conversation — use AI with tone based on returning status
         botResponse = await generateAIResponse(user_message, history, userLang, 'NORMAL', returning);
+        console.log('📤 Normal AI response');
       }
     }
     
