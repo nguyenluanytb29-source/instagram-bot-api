@@ -1056,14 +1056,13 @@ Response (2-4 sentences, ${langName}):`;
  * (Step 1 with price list and "Wäre das für Sie in Ordnung?")
  */
 function hasModellInfoBeenSent(history) {
+  // Only match strings UNIQUE to scripted STEP 1 — not AI-generated responses
   return history.some(msg =>
     msg.role === 'assistant' &&
-    (msg.message.includes('Natur (klar): 15') ||
-     msg.message.includes('Wäre das für Sie in Ordnung') ||
-     msg.message.includes('Schüler') ||
-     msg.message.includes('Modellkunde') ||
-     msg.message.includes('Model Customer') ||
-     msg.message.includes('Khách Mẫu'))
+    (msg.message.includes('Natur (klar): 15') ||            // DE price list
+     msg.message.includes('Wäre das für Sie in Ordnung') || // DE closing question
+     msg.message.includes('Does that sound good to you') || // EN closing question
+     msg.message.includes('Bạn thấy ổn không'))             // VI closing question
   );
 }
 
