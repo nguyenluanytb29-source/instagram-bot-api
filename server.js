@@ -34,50 +34,130 @@ const openai = new OpenAI({
 // MESSAGE CONSTANTS (KEEP FROM OLD FILE)
 // ═══════════════════════════════════════════════════════════════
 
-const MODELL_MESSAGE = `Guten Tag! 😊
+// ═══════════════════════════════════════════════════════════════
+// MODELL FLOW MESSAGES — 3 STEPS × 3 LANGUAGES
+// ═══════════════════════════════════════════════════════════════
 
-Unser **Modellkunde-Service**:
+// ── STEP 1: Initial service info ─────────────────────────────────────────────
 
-💅 **Was ist das?**
-Du lässt dich von unseren talentierten Auszubildenden verwöhnen - perfekt, um neue Looks auszuprobieren!
+const MODELL_STEP1 = {
+  de: `Guten Tag! 😊 Vielen Dank für Ihr Interesse an unseren Dienstleistungen. Zurzeit suchen wir noch Modelle für unsere Schüler. Der Preis richtet sich nach dem Design:
 
-⏰ **Dauer:** 2-3 Stunden (etwas länger als normal)
-💰 **Preis:** 15€-20€ (günstiger als regulärer Service)
+• Natur (klar): 15 €
+• Natur Make-up, French, Farbe, Glitzer, Ombre oder Cat-Eye: 20 €
 
-📅 **Termin buchen:**
-https://nailounge101.setmore.com/
+Für aufwendigere Designs berechnen wir zusätzlich:
+• 1 € pro Design-Nagel
+• 0,50 € pro Steinchen
 
-Wir freuen uns auf dich! 💖`;
+Bitte beachten Sie: Da die Behandlung von einem Schüler durchgeführt wird, kann es sein, dass sehr komplizierte Designs nicht möglich sind. Die Behandlungszeit beträgt normalerweise etwa 2–3 Stunden. Das Ergebnis ist eventuell nicht perfekt, da es sich um eine Übung handelt – wir möchten Sie darüber im Voraus informieren. Falls etwas nicht zufriedenstellend ist, bieten wir innerhalb von 3 Tagen eine kostenlose Nachbesserung an.
 
-const MODELL_MESSAGE_EN = `Hello! 😊
+Wäre das für Sie in Ordnung? 💅 Wenn alles für Sie passt, können wir gerne einen Termin vereinbaren.`,
 
-Our **Model Customer Service**:
+  en: `Hello! 😊 Thank you for your interest in our services. We are currently looking for models for our students. The price depends on the design:
 
-💅 **What is it?**
-You'll be pampered by our talented trainees - perfect for trying new looks!
+• Natural (clear): €15
+• Natural make-up, French, colour, glitter, ombre or cat-eye: €20
 
-⏰ **Duration:** 2-3 hours (a bit longer than normal)
-💰 **Price:** 15€-20€ (cheaper than regular service)
+For more elaborate designs, we charge additionally:
+• €1 per design nail
+• €0.50 per rhinestone
 
-📅 **Book appointment:**
-https://nailounge101.setmore.com/
+Please note: As the treatment is carried out by a student, very complex designs may not be possible. The treatment usually takes around 2–3 hours. The result may not be perfect as it is a practice session – we want to let you know in advance. If anything is unsatisfactory, we offer a free touch-up within 3 days.
 
-We look forward to seeing you! 💖`;
+Does that sound good to you? 💅 If everything works for you, we'd be happy to arrange an appointment.`,
 
-const MODELL_MESSAGE_VI = `Xin chào! 😊
+  vi: `Xin chào! 😊 Cảm ơn bạn đã quan tâm đến dịch vụ của chúng tôi. Hiện tại chúng tôi đang tìm khách mẫu cho học viên. Giá tùy theo mẫu thiết kế:
 
-**Dịch vụ Khách Mẫu**:
+• Tự nhiên (trong): 15 €
+• Tự nhiên make-up, French, màu, nhũ, ombre hoặc cat-eye: 20 €
 
-💅 **Đây là gì?**
-Bạn sẽ được các học viên tài năng phục vụ - hoàn hảo để thử những style mới!
+Với những thiết kế phức tạp hơn, chúng tôi tính thêm:
+• 1 € mỗi móng có họa tiết
+• 0,50 € mỗi đá đính
 
-⏰ **Thời gian:** 2-3 giờ (lâu hơn dịch vụ thường một chút)
-💰 **Giá:** 15€-20€ (rẻ hơn dịch vụ thường)
+Lưu ý: Vì dịch vụ do học viên thực hiện, các thiết kế quá phức tạp có thể không thực hiện được. Thời gian làm thường khoảng 2–3 tiếng. Kết quả có thể không hoàn hảo vì đây là buổi thực hành – chúng tôi muốn thông báo trước để bạn biết. Nếu có điều gì chưa ưng ý, chúng tôi sẽ sửa miễn phí trong vòng 3 ngày.
 
-📅 **Đặt lịch:**
-https://nailounge101.setmore.com/
+Bạn thấy ổn không? 💅 Nếu mọi thứ phù hợp, chúng ta có thể đặt lịch hẹn nhé.`
+};
 
-Rất mong được phục vụ bạn! 💖`;
+// ── STEP 2: Booking link (after customer agrees) ──────────────────────────────
+
+const MODELL_STEP2 = {
+  de: `Super, das freut uns sehr! 🎉
+
+Da wir nur wenige Modellplätze haben, empfehlen wir Ihnen, den Termin direkt online zu buchen. Hier können Sie Ihren Termin reservieren:
+https://nailounge101.setmore.com/team/jeeZoVSakEm9KfPuHaC7ZwfaPN9CKI1R
+
+Modell-Termine werden ausschließlich online gebucht und müssen im Voraus bezahlt werden, damit der Termin verbindlich für Sie reserviert ist. Ohne Vorauszahlung kann der Termin leider nicht reserviert werden. Nur vollständig bezahlte Termine werden bestätigt.
+
+Bitte beachten Sie:
+• Terminbuchung nur online möglich.
+• Vorauszahlung ist erforderlich, um den Termin verbindlich zu reservieren.
+
+Stornierungsbedingungen: Wenn Sie nicht zum Termin erscheinen oder weniger als 24 Stunden vorher absagen, ist eine Rückerstattung leider nicht möglich.
+
+Die Plätze für Modelle sind begrenzt und oft schnell vergeben.
+
+Wir freuen uns auf Ihren Besuch bei Nailounge101! 💅`,
+
+  en: `That's wonderful, we're so pleased! 🎉
+
+As we only have a limited number of model spots, we recommend booking your appointment directly online. You can reserve your spot here:
+https://nailounge101.setmore.com/team/jeeZoVSakEm9KfPuHaC7ZwfaPN9CKI1R
+
+Model appointments are booked exclusively online and must be paid in advance to secure your reservation. Without prepayment, unfortunately we cannot hold the appointment. Only fully paid appointments will be confirmed.
+
+Please note:
+• Booking is only possible online.
+• Prepayment is required to secure your appointment.
+
+Cancellation policy: If you do not show up or cancel less than 24 hours in advance, a refund will unfortunately not be possible.
+
+Model spots are limited and fill up quickly.
+
+We look forward to your visit at Nailounge101! 💅`,
+
+  vi: `Tuyệt vời, chúng tôi rất vui! 🎉
+
+Vì chỉ có ít chỗ cho khách mẫu, chúng tôi khuyên bạn đặt lịch trực tiếp online. Bạn có thể đặt chỗ tại đây:
+https://nailounge101.setmore.com/team/jeeZoVSakEm9KfPuHaC7ZwfaPN9CKI1R
+
+Lịch khách mẫu chỉ đặt online và cần thanh toán trước để giữ chỗ. Nếu không thanh toán trước, chúng tôi không thể giữ lịch cho bạn. Chỉ những lịch đã thanh toán đầy đủ mới được xác nhận.
+
+Lưu ý:
+• Chỉ đặt lịch online.
+• Bắt buộc thanh toán trước để giữ chỗ.
+
+Chính sách huỷ: Nếu bạn không đến hoặc huỷ trước dưới 24 giờ, chúng tôi không thể hoàn tiền.
+
+Chỗ khách mẫu có hạn và thường hết nhanh.
+
+Chúng tôi mong được đón bạn tại Nailounge101! 💅`
+};
+
+// ── STEP 3: Prepayment explanation ───────────────────────────────────────────
+
+const MODELL_STEP3 = {
+  de: `Wir bitten um Vorauszahlung, da Modell-Termine sehr lange dauern (ca. 2–3 Stunden) und wir nur wenige Plätze für unsere Schüler haben. So können wir sicherstellen, dass der Termin wirklich für Sie reserviert ist.
+
+Vielen Dank für Ihr Verständnis! 😊 Leider hatten wir in der Vergangenheit viele Termin-Ausfälle, daher ist die Vorauszahlung für Modell-Termine notwendig.`,
+
+  en: `We ask for prepayment because model appointments take a long time (approx. 2–3 hours) and we only have a few spots available for our students. This ensures your appointment is genuinely reserved for you.
+
+Thank you for your understanding! 😊 Unfortunately we've had many no-shows in the past, which is why prepayment is required for model appointments.`,
+
+  vi: `Chúng tôi yêu cầu thanh toán trước vì lịch khách mẫu kéo dài khá lâu (khoảng 2–3 tiếng) và chỉ có ít chỗ cho học viên. Điều này giúp đảm bảo lịch hẹn thực sự được giữ cho bạn.
+
+Cảm ơn bạn đã thông cảm! 😊 Tiếc là trước đây chúng tôi có nhiều trường hợp khách không đến, vì vậy thanh toán trước là bắt buộc cho lịch khách mẫu.`
+};
+
+// ── Helpers to pick the right language ───────────────────────────────────────
+const MODELL_MESSAGE         = MODELL_STEP1.de; // legacy alias (DE default)
+const MODELL_MESSAGE_EN      = MODELL_STEP1.en; // legacy alias
+const MODELL_MESSAGE_VI      = MODELL_STEP1.vi; // legacy alias
+const MODELL_BOOKING_MESSAGE = MODELL_STEP2.de; // legacy alias
+const MODELL_PREPAYMENT_REASON = MODELL_STEP3.de; // legacy alias
 
 // ═══════════════════════════════════════════════════════════════
 // DATABASE HELPER FUNCTIONS (FROM OLD FILE)
@@ -550,25 +630,110 @@ async function classifyCustomer(message, contactId, history, language) {
 // RESPONSE GENERATION
 // ═══════════════════════════════════════════════════════════════
 
-async function generateAIResponse(message, history, language, customerType) {
+// ═══════════════════════════════════════════════════════════════
+// NORMAL CUSTOMER FLOW HELPERS
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * A returning customer has prior assistant messages saved in DB.
+ * history here = rows from getChatHistory (all past messages loaded
+ * BEFORE the current turn).
+ */
+function isReturningCustomer(history) {
+  return history.some(msg => msg.role === 'assistant');
+}
+
+/**
+ * Use AI to detect if the customer is trying to book an appointment
+ * and extract the requested date/time if present.
+ * Returns: { isBooking: bool, datetime: string|null }
+ */
+async function detectBookingRequest(message, language, history) {
+  try {
+    const recentHistory = history.slice(-6).map(m => `[${m.role}]: ${m.message}`).join('\n');
+    const prompt = `You are analyzing a message from a nail salon customer to detect booking intent.
+
+Conversation context:
+${recentHistory || '[No prior messages]'}
+
+Current message: "${message}"
+
+Task:
+1. Does the customer want to book / request an appointment? (yes/no)
+2. If yes, extract the requested date and/or time from the message. Use 24h format for time. If only a day name is given (e.g. "Montag", "Monday", "thứ 2"), note it as-is. If no date/time mentioned, set datetime to null.
+
+Respond ONLY with valid JSON:
+{
+  "isBooking": true or false,
+  "datetime": "extracted date/time string" or null,
+  "summary": "one short sentence describing the request in German"
+}`;
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'system', content: prompt }],
+      temperature: 0.1,
+      response_format: { type: 'json_object' }
+    });
+
+    return JSON.parse(response.choices[0].message.content);
+  } catch (error) {
+    console.error('Error detectBookingRequest:', error);
+    return { isBooking: false, datetime: null, summary: '' };
+  }
+}
+
+/**
+ * Append booking info to the conversation_summary so staff can see it.
+ */
+async function saveBookingToSummary(contactId, userName, bookingInfo) {
+  try {
+    const existing = await pool.query(
+      'SELECT summary FROM conversation_summary WHERE contact_id = $1',
+      [contactId]
+    );
+    const existingText = existing.rows.length > 0 ? existing.rows[0].summary || '' : '';
+    const bookingNote = `[TERMINWUNSCH] ${bookingInfo.datetime ? bookingInfo.datetime + ' — ' : ''}${bookingInfo.summary}`;
+    const newSummary = existingText
+      ? `${existingText}\n${bookingNote}`
+      : bookingNote;
+
+    await pool.query(`
+      INSERT INTO conversation_summary (contact_id, user_name, summary, last_updated)
+      VALUES ($1, $2, $3, NOW())
+      ON CONFLICT (contact_id)
+      DO UPDATE SET summary = $3, user_name = $2, last_updated = NOW()
+    `, [contactId, userName, newSummary]);
+
+    console.log('✅ Booking note saved to summary');
+  } catch (error) {
+    console.error('Error saveBookingToSummary:', error);
+  }
+}
+
+async function generateAIResponse(message, history, language, customerType, isReturning = false) {
   console.log('\n🤖 === GENERATING AI RESPONSE ===');
   
   const historyText = formatHistory(history);
   
   const serviceInfo = customerType === 'MODELL' 
     ? 'Model Service: 15-20€, 2-3h, student practice'
-    : 'Professional service: Standard prices, quality guaranteed';
+    : 'Professional service: standard prices, quality guaranteed';
   
   const langNames = { de: 'German', en: 'English', vi: 'Vietnamese' };
   const langName = langNames[language] || 'German';
-  
+
+  const toneInstruction = isReturning
+    ? `TONE: This is a RETURNING customer — speak warmly and naturally like you know them. Use casual, friendly language (du/bạn/you). Skip stiff greetings. Keep it personal and relaxed.`
+    : `TONE: New customer — friendly but professional.`;
+
   const systemPrompt = `You are Nailounge101 AI assistant for a nail salon in Berlin.
 
 CRITICAL RULES:
-1. LANGUAGE: Respond in ${langName}
+1. LANGUAGE: Respond in ${langName} only
 2. CONCISE: 2-4 sentences max (mobile users)
-3. NATURAL: Friendly but professional
-4. HELPFUL: Answer directly
+3. HELPFUL: Answer directly
+4. ${toneInstruction}
 
 SALON INFO:
 ${serviceInfo}
@@ -587,7 +752,7 @@ Response (2-4 sentences, ${langName}):`;
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [{ role: 'system', content: systemPrompt }],
-      temperature: 0.2,
+      temperature: isReturning ? 0.4 : 0.2,
       max_tokens: 400
     });
     
@@ -595,7 +760,6 @@ Response (2-4 sentences, ${langName}):`;
   } catch (error) {
     console.error('Error generating response:', error);
     
-    // Fallback
     const fallbacks = {
       de: 'Entschuldigung, ich hatte ein technisches Problem. Wie kann ich Ihnen helfen?',
       en: 'Sorry, I had a technical issue. How can I help you?',
@@ -604,6 +768,86 @@ Response (2-4 sentences, ${langName}):`;
     
     return fallbacks[language] || fallbacks.de;
   }
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// MODELL FLOW DETECTION HELPERS
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Check if the bot has already sent the initial MODELL info message
+ * (Step 1 with price list and "Wäre das für Sie in Ordnung?")
+ */
+function hasModellInfoBeenSent(history) {
+  return history.some(msg =>
+    msg.role === 'assistant' &&
+    (msg.message.includes('Natur (klar): 15') ||
+     msg.message.includes('Wäre das für Sie in Ordnung') ||
+     msg.message.includes('Schüler') ||
+     msg.message.includes('Modellkunde') ||
+     msg.message.includes('Model Customer') ||
+     msg.message.includes('Khách Mẫu'))
+  );
+}
+
+/**
+ * Check if the bot has already sent the booking link (Step 2)
+ */
+function hasBookingLinkBeenSent(history) {
+  return history.some(msg =>
+    msg.role === 'assistant' &&
+    msg.message.includes('nailounge101.setmore.com/team/')
+  );
+}
+
+/**
+ * Detect if the customer is agreeing / saying yes to the model service offer.
+ * Covers German, English and Vietnamese affirmations.
+ */
+function isCustomerAgreeing(message) {
+  const lower = message.toLowerCase().trim();
+  const agreementPatterns = [
+    // German
+    'ja', 'ok', 'okay', 'in ordnung', 'klar', 'natürlich', 'gerne',
+    'super', 'perfekt', 'ja bitte', 'ja das passt', 'das passt',
+    'einverstanden', 'stimmt', 'alles klar', 'ja gerne', 'klingt gut',
+    'das klingt gut', 'passt', 'ja passt',
+    // English
+    'yes', 'sure', 'sounds good', 'that works', 'agreed', "i'm in",
+    'perfect', 'great',
+    // Vietnamese
+    'được', 'đồng ý', 'vâng', 'dạ', 'oke', 'tốt', 'được ạ', 'ok'
+  ];
+  return agreementPatterns.some(p =>
+    lower === p ||
+    lower.startsWith(p + ' ') ||
+    lower.startsWith(p + ',') ||
+    lower.startsWith(p + '!') ||
+    lower.startsWith(p + '.')
+  );
+}
+
+/**
+ * Detect if the customer is asking WHY they need to pay in advance.
+ */
+function isAskingAboutPrepayment(message) {
+  const lower = message.toLowerCase();
+  const prepaymentPatterns = [
+    // German
+    'warum vorauszahlung', 'wieso vorauszahlung', 'weshalb vorauszahlung',
+    'warum im voraus', 'wieso im voraus', 'warum muss ich zahlen',
+    'warum bezahlen', 'wieso bezahlen', 'warum vorher',
+    'vorauszahlung warum', 'vorab zahlen warum', 'wieso vorher',
+    'warum zahlen',
+    // English
+    'why prepay', 'why pay in advance', 'why pay upfront', 'why do i have to pay',
+    'why must i pay', 'reason for prepayment',
+    // Vietnamese
+    'tại sao phải trả trước', 'vì sao trả trước', 'tại sao cần đặt cọc',
+    'sao phải thanh toán trước', 'tại sao phải thanh toán', 'lý do trả trước'
+  ];
+  return prepaymentPatterns.some(p => lower.includes(p));
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -649,45 +893,75 @@ app.post('/webhook', async (req, res) => {
     let botResponse;
     
     if (customerType === 'MODELL') {
-      // Check if first time asking about model service
-      const hasModellInfo = history.some(msg => 
-        msg.role === 'assistant' && 
-        (msg.message.includes('Modellkunde') || 
-         msg.message.includes('Model Customer') ||
-         msg.message.includes('Khách Mẫu'))
-      );
-      
-      if (!hasModellInfo && history.length < 3) {
-        // First time - send standard model message
-        const alreadyGreeted = history.some(msg => msg.role === 'assistant');
-        
-        let modellMessage;
-        if (userLang === 'vi') {
-          modellMessage = MODELL_MESSAGE_VI;
-          if (alreadyGreeted) {
-            modellMessage = modellMessage.replace('Xin chào! 😊\n\n', '');
-          }
-        } else if (userLang === 'en') {
-          modellMessage = MODELL_MESSAGE_EN;
-          if (alreadyGreeted) {
-            modellMessage = modellMessage.replace('Hello! 😊\n\n', '');
-          }
-        } else {
-          modellMessage = MODELL_MESSAGE;
-          if (alreadyGreeted) {
-            modellMessage = modellMessage.replace('Guten Tag! 😊\n\n', '');
-          }
-        }
-        
-        botResponse = modellMessage;
-        console.log('📤 Sending standard MODELL message');
+      const infoAlreadySent    = hasModellInfoBeenSent(history);
+      const bookingAlreadySent = hasBookingLinkBeenSent(history);
+
+      // STEP 3: Customer asks why prepayment is required
+      if (bookingAlreadySent && isAskingAboutPrepayment(user_message)) {
+        botResponse = MODELL_STEP3[userLang] || MODELL_STEP3.de;
+        console.log(`📤 Sending MODELL STEP 3 (${userLang}): prepayment explanation`);
+
+      // STEP 2: Customer agrees after seeing info → send booking link
+      } else if (infoAlreadySent && !bookingAlreadySent && isCustomerAgreeing(user_message)) {
+        botResponse = MODELL_STEP2[userLang] || MODELL_STEP2.de;
+        console.log(`📤 Sending MODELL STEP 2 (${userLang}): booking link`);
+
+      // STEP 1: First contact – send service info with prices
+      } else if (!infoAlreadySent) {
+        botResponse = MODELL_STEP1[userLang] || MODELL_STEP1.de;
+        console.log(`📤 Sending MODELL STEP 1 (${userLang}): service info`);
+
+      // Follow-up: anything else → AI handles it
       } else {
-        // Follow-up question - use AI
         botResponse = await generateAIResponse(user_message, history, userLang, 'MODELL');
+        console.log('📤 MODELL follow-up: AI response');
       }
+
     } else {
-      // Normal customer - use AI
-      botResponse = await generateAIResponse(user_message, history, userLang, 'NORMAL');
+      // ── NORMAL CUSTOMER FLOW ─────────────────────────────────────
+      const returning = isReturningCustomer(history);
+      console.log(`\n📌 Returning customer: ${returning}`);
+
+      // Check if customer is trying to book an appointment
+      const bookingResult = await detectBookingRequest(user_message, userLang, history);
+      console.log(`📌 Booking detected: ${bookingResult.isBooking}, datetime: ${bookingResult.datetime}`);
+
+      if (bookingResult.isBooking) {
+        // Save booking request to summary for staff
+        await saveBookingToSummary(contact_id, user_name, bookingResult);
+
+        // Generate confirmation reply in customer's language
+        const bookingConfirmPrompts = {
+          de: `Bestätige dem Kunden kurz und herzlich, dass du den Terminwunsch (${bookingResult.datetime || 'ohne genaue Zeit'}) notiert hast und dass ein Mitarbeiter den Kalender prüfen und sich melden wird. Sei warm${returning ? ' und vertraut' : ''}. Max 3 Sätze auf Deutsch.`,
+          en: `Briefly and warmly confirm to the customer that you've noted their appointment request (${bookingResult.datetime || 'no specific time given'}) and that a team member will check the calendar and get back to them. Be friendly${returning ? ' and casual' : ''}. Max 3 sentences in English.`,
+          vi: `Xác nhận ngắn gọn và thân thiện với khách rằng bạn đã ghi nhận yêu cầu đặt lịch (${bookingResult.datetime || 'chưa có thời gian cụ thể'}) và nhân viên sẽ kiểm tra lịch rồi phản hồi lại. Tone${returning ? ' thân mật' : ' thân thiện'}. Tối đa 3 câu bằng tiếng Việt.`
+        };
+
+        const confirmPrompt = bookingConfirmPrompts[userLang] || bookingConfirmPrompts.de;
+
+        try {
+          const confirmRes = await openai.chat.completions.create({
+            model: 'gpt-4o',
+            messages: [{ role: 'system', content: confirmPrompt }],
+            temperature: returning ? 0.4 : 0.2,
+            max_tokens: 200
+          });
+          botResponse = confirmRes.choices[0].message.content.trim();
+        } catch (err) {
+          // Fallback hardcoded confirmation
+          const fallbackConfirm = {
+            de: `Alles klar${returning ? ' 😊' : '!'} Ich habe deinen Terminwunsch für ${bookingResult.datetime || 'den gewünschten Termin'} notiert. Unser Team prüft den Kalender und meldet sich bei dir. Danke! 💅`,
+            en: `Got it${returning ? ' 😊' : '!'} I've noted your appointment request for ${bookingResult.datetime || 'your preferred time'}. Our team will check the calendar and get back to you. Thanks! 💅`,
+            vi: `Được rồi${returning ? ' 😊' : '!'} Mình đã ghi nhận yêu cầu đặt lịch ${bookingResult.datetime || 'của bạn'} rồi nhé. Nhân viên sẽ kiểm tra lịch và phản hồi lại bạn sớm. Cảm ơn bạn! 💅`
+          };
+          botResponse = fallbackConfirm[userLang] || fallbackConfirm.de;
+        }
+        console.log('📤 Booking confirmation sent');
+
+      } else {
+        // Regular conversation — use AI with tone based on returning status
+        botResponse = await generateAIResponse(user_message, history, userLang, 'NORMAL', returning);
+      }
     }
     
     // Save messages
