@@ -320,8 +320,8 @@ async function ensureCustomerRecord(contactId, userName) {
     `);
 
     await pool.query(`
-      INSERT INTO conversation_summary (contact_id, user_name, preferred_language, customer_type_flag, last_updated)
-      VALUES ($1, $2, 'de', 'NORMAL', NOW())
+      INSERT INTO conversation_summary (contact_id, user_name, summary, preferred_language, customer_type_flag, last_updated)
+      VALUES ($1, $2, '', 'de', 'NORMAL', NOW())
       ON CONFLICT (contact_id) DO NOTHING
     `, [contactId, userName]);
   } catch (error) {
@@ -1066,16 +1066,16 @@ Response (2-4 sentences, ${langName}):`;
  * (Step 1 with price list and "Wäre das für Sie in Ordnung?")
  */
 function hasModellInfoBeenSent(history) {
-  // Match ONLY strings that exist exclusively in scripted STEP 1 messages.
-  // "Natur (klar): 15" is the price bullet — impossible for AI to generate verbatim.
-  // The closing questions are also unique to the scripted text.
+  // Match ONLY strings exclusive to the scripted STEP 1 messages.
+  // We check for the bullet "0,50 € pro Steinchen" which AI never generates verbatim,
+  // AND exclude any message that contains the generic booking link (AI fallback signature).
   return history.some(msg =>
     msg.role === 'assistant' &&
-    (msg.message.includes('Natur (klar): 15') ||
-     msg.message.includes('Wäre das für Sie in Ordnung') ||
-     msg.message.includes('Does that sound good to you') ||
-     msg.message.includes('Bạn thấy ổn không') ||
-     msg.message.includes('0,50 € pro Steinchen'))  // another unique price bullet
+    !msg.message.includes('https://nailounge101.setmore.com/') &&  // exclude AI fallback
+    (msg.message.includes('0,50 € pro Steinchen') ||               // DE price bullet
+     msg.message.includes('Wäre das für Sie in Ordnung') ||        // DE closing
+     msg.message.includes('Does that sound good to you') ||        // EN closing
+     msg.message.includes('Bạn thấy ổn không'))                    // VI closing
   );
 }
 
