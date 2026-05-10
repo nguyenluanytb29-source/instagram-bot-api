@@ -309,6 +309,12 @@ async function updateLanguage(contactId, language) {
 
 async function ensureCustomerRecord(contactId, userName) {
   try {
+    // Auto-add customer_type_flag column if it doesn't exist (migration safety)
+    await pool.query(`
+      ALTER TABLE conversation_summary
+      ADD COLUMN IF NOT EXISTS customer_type_flag TEXT DEFAULT 'NORMAL'
+    `);
+
     await pool.query(`
       INSERT INTO conversation_summary (contact_id, user_name, preferred_language, customer_type_flag, created_at, last_updated)
       VALUES ($1, $2, 'de', 'NORMAL', NOW(), NOW())
