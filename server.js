@@ -309,15 +309,19 @@ async function updateLanguage(contactId, language) {
 
 async function ensureCustomerRecord(contactId, userName) {
   try {
-    // Auto-add customer_type_flag column if it doesn't exist (migration safety)
+    // Auto-migrate: add missing columns if they don't exist
     await pool.query(`
       ALTER TABLE conversation_summary
       ADD COLUMN IF NOT EXISTS customer_type_flag TEXT DEFAULT 'NORMAL'
     `);
+    await pool.query(`
+      ALTER TABLE conversation_summary
+      ADD COLUMN IF NOT EXISTS preferred_language TEXT DEFAULT 'de'
+    `);
 
     await pool.query(`
-      INSERT INTO conversation_summary (contact_id, user_name, preferred_language, customer_type_flag, created_at, last_updated)
-      VALUES ($1, $2, 'de', 'NORMAL', NOW(), NOW())
+      INSERT INTO conversation_summary (contact_id, user_name, preferred_language, customer_type_flag, last_updated)
+      VALUES ($1, $2, 'de', 'NORMAL', NOW())
       ON CONFLICT (contact_id) DO NOTHING
     `, [contactId, userName]);
   } catch (error) {
@@ -1062,13 +1066,16 @@ Response (2-4 sentences, ${langName}):`;
  * (Step 1 with price list and "Wäre das für Sie in Ordnung?")
  */
 function hasModellInfoBeenSent(history) {
-  // Only match strings UNIQUE to scripted STEP 1 — not AI-generated responses
+  // Match ONLY strings that exist exclusively in scripted STEP 1 messages.
+  // "Natur (klar): 15" is the price bullet — impossible for AI to generate verbatim.
+  // The closing questions are also unique to the scripted text.
   return history.some(msg =>
     msg.role === 'assistant' &&
-    (msg.message.includes('Natur (klar): 15') ||            // DE price list
-     msg.message.includes('Wäre das für Sie in Ordnung') || // DE closing question
-     msg.message.includes('Does that sound good to you') || // EN closing question
-     msg.message.includes('Bạn thấy ổn không'))             // VI closing question
+    (msg.message.includes('Natur (klar): 15') ||
+     msg.message.includes('Wäre das für Sie in Ordnung') ||
+     msg.message.includes('Does that sound good to you') ||
+     msg.message.includes('Bạn thấy ổn không') ||
+     msg.message.includes('0,50 € pro Steinchen'))  // another unique price bullet
   );
 }
 
