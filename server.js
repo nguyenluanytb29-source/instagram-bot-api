@@ -62,8 +62,12 @@ Falls etwas nicht zufriedenstellend ist, bieten wir innerhalb von 3 Tagen eine k
 
 Wäre das für Sie in Ordnung? 💅 Wenn alles für Sie passt, können wir gerne einen Termin vereinbaren.`,
 
-  en: `Hello! 😊 Thank you for your interest in our services. We are currently looking for models for our students. The price depends on the design:
+  en: `Hello! 😊
 
+Thank you for your interest in our services.
+We are currently looking for models for our students.
+
+The price depends on the design:
 • Natural (clear): €15
 • Natural make-up, French, colour, glitter, ombre or cat-eye: €20
 
@@ -71,12 +75,20 @@ For more elaborate designs, we charge additionally:
 • €1 per design nail
 • €0.50 per rhinestone
 
-Please note: As the treatment is carried out by a student, very complex designs may not be possible. The treatment usually takes around 2–3 hours. The result may not be perfect as it is a practice session – we want to let you know in advance. If anything is unsatisfactory, we offer a free touch-up within 3 days.
+Please note:
+As the treatment is carried out by a student, very complex designs may not be possible.
+The treatment usually takes around 2–3 hours.
+The result may not be perfect as it is a practice session – we want to let you know in advance.
+If anything is unsatisfactory, we offer a free touch-up within 3 days.
 
 Does that sound good to you? 💅 If everything works for you, we'd be happy to arrange an appointment.`,
 
-  vi: `Xin chào! 😊 Cảm ơn bạn đã quan tâm đến dịch vụ của chúng tôi. Hiện tại chúng tôi đang tìm khách mẫu cho học viên. Giá tùy theo mẫu thiết kế:
+  vi: `Xin chào! 😊
 
+Cảm ơn bạn đã quan tâm đến dịch vụ của chúng tôi.
+Hiện tại chúng tôi đang tìm khách mẫu cho học viên.
+
+Giá tùy theo mẫu thiết kế:
 • Tự nhiên (trong): 15 €
 • Tự nhiên make-up, French, màu, nhũ, ombre hoặc cat-eye: 20 €
 
@@ -84,7 +96,11 @@ Với những thiết kế phức tạp hơn, chúng tôi tính thêm:
 • 1 € mỗi móng có họa tiết
 • 0,50 € mỗi đá đính
 
-Lưu ý: Vì dịch vụ do học viên thực hiện, các thiết kế quá phức tạp có thể không thực hiện được. Thời gian làm thường khoảng 2–3 tiếng. Kết quả có thể không hoàn hảo vì đây là buổi thực hành – chúng tôi muốn thông báo trước để bạn biết. Nếu có điều gì chưa ưng ý, chúng tôi sẽ sửa miễn phí trong vòng 3 ngày.
+Lưu ý:
+Vì dịch vụ do học viên thực hiện, các thiết kế quá phức tạp có thể không thực hiện được.
+Thời gian làm thường khoảng 2–3 tiếng.
+Kết quả có thể không hoàn hảo vì đây là buổi thực hành – chúng tôi muốn thông báo trước để bạn biết.
+Nếu có điều gì chưa ưng ý, chúng tôi sẽ sửa miễn phí trong vòng 3 ngày.
 
 Bạn thấy ổn không? 💅 Nếu mọi thứ phù hợp, chúng ta có thể đặt lịch hẹn nhé.`
 };
@@ -113,35 +129,43 @@ Die Plätze für Modelle sind begrenzt und oft schnell vergeben.
 
 Wir freuen uns auf Ihren Besuch bei Nailounge101! 💅`,
 
-  en: `That's wonderful, we're so pleased! 🎉
+  en: `That's wonderful, we're so pleased! 😊
 
-As we only have a limited number of model spots, we recommend booking your appointment directly online. You can reserve your spot here:
+As we only have a limited number of model spots, we recommend booking your appointment directly online.
+You can reserve your spot here:
 https://nailounge101.setmore.com/team/jeeZoVSakEm9KfPuHaC7ZwfaPN9CKI1R
 
-Model appointments are booked exclusively online and must be paid in advance to secure your reservation. Without prepayment, unfortunately we cannot hold the appointment. Only fully paid appointments will be confirmed.
+Model appointments are booked exclusively online and must be paid in advance to secure your reservation.
+Without prepayment, unfortunately we cannot hold the appointment.
+Only fully paid appointments will be confirmed.
 
 Please note:
 • Booking is only possible online.
 • Prepayment is required to secure your appointment.
 
-Cancellation policy: If you do not show up or cancel less than 24 hours in advance, a refund will unfortunately not be possible.
+Cancellation policy:
+If you do not show up or cancel less than 24 hours in advance, a refund will unfortunately not be possible.
 
 Model spots are limited and fill up quickly.
 
 We look forward to your visit at Nailounge101! 💅`,
 
-  vi: `Tuyệt vời, chúng tôi rất vui! 🎉
+  vi: `Tuyệt vời, chúng tôi rất vui! 😊
 
-Vì chỉ có ít chỗ cho khách mẫu, chúng tôi khuyên bạn đặt lịch trực tiếp online. Bạn có thể đặt chỗ tại đây:
+Vì chỉ có ít chỗ cho khách mẫu, chúng tôi khuyên bạn đặt lịch trực tiếp online.
+Bạn có thể đặt chỗ tại đây:
 https://nailounge101.setmore.com/team/jeeZoVSakEm9KfPuHaC7ZwfaPN9CKI1R
 
-Lịch khách mẫu chỉ đặt online và cần thanh toán trước để giữ chỗ. Nếu không thanh toán trước, chúng tôi không thể giữ lịch cho bạn. Chỉ những lịch đã thanh toán đầy đủ mới được xác nhận.
+Lịch khách mẫu chỉ đặt online và cần thanh toán trước để giữ chỗ.
+Nếu không thanh toán trước, chúng tôi không thể giữ lịch cho bạn.
+Chỉ những lịch đã thanh toán đầy đủ mới được xác nhận.
 
 Lưu ý:
 • Chỉ đặt lịch online.
 • Bắt buộc thanh toán trước để giữ chỗ.
 
-Chính sách huỷ: Nếu bạn không đến hoặc huỷ trước dưới 24 giờ, chúng tôi không thể hoàn tiền.
+Chính sách huỷ:
+Nếu bạn không đến hoặc huỷ trước dưới 24 giờ, chúng tôi không thể hoàn tiền.
 
 Chỗ khách mẫu có hạn và thường hết nhanh.
 
@@ -157,13 +181,17 @@ So können wir sicherstellen, dass der Termin wirklich für Sie reserviert ist.
 Vielen Dank für Ihr Verständnis! 😊
 Leider hatten wir in der Vergangenheit viele Termin-Ausfälle, daher ist die Vorauszahlung für Modell-Termine notwendig.`,
 
-  en: `We ask for prepayment because model appointments take a long time (approx. 2–3 hours) and we only have a few spots available for our students. This ensures your appointment is genuinely reserved for you.
+  en: `We ask for prepayment because model appointments take a long time (approx. 2–3 hours) and we only have a few spots available for our students.
+This ensures your appointment is genuinely reserved for you.
 
-Thank you for your understanding! 😊 Unfortunately we've had many no-shows in the past, which is why prepayment is required for model appointments.`,
+Thank you for your understanding! 😊
+Unfortunately we've had many no-shows in the past, which is why prepayment is required for model appointments.`,
 
-  vi: `Chúng tôi yêu cầu thanh toán trước vì lịch khách mẫu kéo dài khá lâu (khoảng 2–3 tiếng) và chỉ có ít chỗ cho học viên. Điều này giúp đảm bảo lịch hẹn thực sự được giữ cho bạn.
+  vi: `Chúng tôi yêu cầu thanh toán trước vì lịch khách mẫu kéo dài khá lâu (khoảng 2–3 tiếng) và chỉ có ít chỗ cho học viên.
+Điều này giúp đảm bảo lịch hẹn thực sự được giữ cho bạn.
 
-Cảm ơn bạn đã thông cảm! 😊 Tiếc là trước đây chúng tôi có nhiều trường hợp khách không đến, vì vậy thanh toán trước là bắt buộc cho lịch khách mẫu.`
+Cảm ơn bạn đã thông cảm! 😊
+Tiếc là trước đây chúng tôi có nhiều trường hợp khách không đến, vì vậy thanh toán trước là bắt buộc cho lịch khách mẫu.`
 };
 
 // ── Helpers to pick the right language ───────────────────────────────────────
@@ -1029,7 +1057,7 @@ CRITICAL RULES:
 SALON INFO:
 ${serviceInfo}
 Hours: Mon–Fri 09:30–19:00 | Sat 09:30–16:00 | Sun: CLOSED
-Booking: https://nailounge101.setmore.com/
+Booking: ${customerType === 'MODELL' ? 'https://nailounge101.setmore.com/team/jeeZoVSakEm9KfPuHaC7ZwfaPN9CKI1R' : 'https://nailounge101.setmore.com/'}
 
 CONVERSATION HISTORY:
 ${historyText}
