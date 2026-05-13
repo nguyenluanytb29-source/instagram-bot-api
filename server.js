@@ -1279,8 +1279,8 @@ app.post('/webhook', async (req, res) => {
 
       const askedPrefAlready = hasAskedBookingPreference(history);
 
-      // ── CASE A: Customer says they'll book themselves ─────────────
-      if (bookingIntent.isSelfBooking || (askedPrefAlready && !bookingIntent.isAssistedBooking && bookingIntent.isBooking === false)) {
+      // ── CASE A: Customer explicitly says they'll book themselves ───
+      if (bookingIntent.isSelfBooking) {
         const thankYou = {
           de: returning
             ? `Super, danke dir! 😊 Wenn du Fragen hast, meld dich einfach. Bis bald! 💅`
