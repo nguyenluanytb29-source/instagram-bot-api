@@ -1007,16 +1007,16 @@ function validateBookingDatetime(datetimeStr) {
 
   // Normalise German/Vietnamese day names → English
   const dayMap = {
-    'montag': 'Monday', 'dienstag': 'Tuesday', 'mittwoch': 'Wednesday',
-    'donnerstag': 'Thursday', 'freitag': 'Friday', 'samstag': 'Saturday',
-    'sonntag': 'Sunday',
-    'thứ 2': 'Monday', 'thứ hai': 'Monday',
-    'thứ 3': 'Tuesday', 'thứ ba': 'Tuesday',
-    'thứ 4': 'Wednesday', 'thứ tư': 'Wednesday',
-    'thứ 5': 'Thursday', 'thứ năm': 'Thursday',
-    'thứ 6': 'Friday', 'thứ sáu': 'Friday',
-    'thứ 7': 'Saturday', 'thứ bảy': 'Saturday',
-    'chủ nhật': 'Sunday', 'cn': 'Sunday'
+    'montag': 'monday', 'dienstag': 'tuesday', 'mittwoch': 'wednesday',
+    'donnerstag': 'thursday', 'freitag': 'friday', 'samstag': 'saturday',
+    'sonntag': 'sunday',
+    'thứ 2': 'monday', 'thứ hai': 'monday',
+    'thứ 3': 'tuesday', 'thứ ba': 'tuesday',
+    'thứ 4': 'wednesday', 'thứ tư': 'wednesday',
+    'thứ 5': 'thursday', 'thứ năm': 'thursday',
+    'thứ 6': 'friday', 'thứ sáu': 'friday',
+    'thứ 7': 'saturday', 'thứ bảy': 'saturday',
+    'chủ nhật': 'sunday', 'cn': 'sunday'
   };
 
   let normalised = datetimeStr.toLowerCase();
@@ -1059,7 +1059,7 @@ function validateBookingDatetime(datetimeStr) {
   }
 
   // ── Detect if it's a Saturday ────────────────────────────────────────────
-  const isSaturdayKeyword = ['saturday', 'samstag', 'thứ 7', 'thứ bảy'].some(k => normalised.includes(k));
+  const isSaturdayKeyword = ['saturday', 'samstag', 'thứ 7', 'thứ bảy'].some(k => normalised.toLowerCase().includes(k));
 
   // ── Extract time ─────────────────────────────────────────────────────────
   const timeMatch = normalised.match(/(\d{1,2}):(\d{2})/);
