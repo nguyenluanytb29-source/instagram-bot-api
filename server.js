@@ -208,7 +208,7 @@ const MODELL_PREPAYMENT_REASON = MODELL_STEP3.de; // legacy alias
 async function getChatHistory(contactId) {
   try {
     const result = await pool.query(
-      'SELECT role, message, timestamp FROM chat_history WHERE contact_id = $1 ORDER BY timestamp ASC',
+      'SELECT role, message, timestamp, source FROM chat_history WHERE contact_id = $1 ORDER BY timestamp ASC',
       [contactId]
     );
     return result.rows;
@@ -218,15 +218,18 @@ async function getChatHistory(contactId) {
   }
 }
 
-async function saveMessage(contactId, userName, role, message) {
-  const query = `
-    INSERT INTO chat_history (contact_id, user_name, role, message)
-    VALUES ($1, $2, $3, $4)
-  `;
-  
+async function saveMessage(contactId, userName, role, message, source = 'ai') {
   try {
-    await pool.query(query, [contactId, userName, role, message]);
-    console.log(`✅ Saved ${role} message`);
+    // Auto-migrate: add source column if not exists
+    await pool.query(`
+      ALTER TABLE chat_history
+      ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'ai'
+    `);
+    await pool.query(`
+      INSERT INTO chat_history (contact_id, user_name, role, message, source)
+      VALUES ($1, $2, $3, $4, $5)
+    `, [contactId, userName, role, message, source]);
+    console.log(`✅ Saved ${role} message [source=${source}]`);
   } catch (error) {
     console.error(`❌ Save ${role} message error:`, error.message);
   }
@@ -1106,26 +1109,15 @@ Response (2-4 sentences, ${langName}):`;
  * (Step 1 with price list and "Wäre das für Sie in Ordnung?")
  */
 function hasModellInfoBeenSent(history) {
-  // Use BOTH unique anchors together (AND logic) to avoid false positives.
-  // STEP 1 scripted DE contains BOTH "0,50 € pro Steinchen" AND "Natur (klar): 15"
-  // AI cannot generate both these exact price bullets simultaneously.
-  const matchDE = history.some(msg =>
+  // Only check rows saved with source='scripted' — AI fallback rows are ignored.
+  const result = history.some(msg =>
     msg.role === 'assistant' &&
-    msg.message.includes('0,50 € pro Steinchen') &&
-    msg.message.includes('Natur (klar): 15')
+    msg.source === 'scripted' &&
+    (msg.message.includes('0,50 € pro Steinchen') ||   // DE STEP 1
+     msg.message.includes('€0.50 per rhinestone') ||   // EN STEP 1
+     msg.message.includes('0,50 € mỗi đá đính'))       // VI STEP 1
   );
-  const matchEN = history.some(msg =>
-    msg.role === 'assistant' &&
-    msg.message.includes('€0.50 per rhinestone') &&
-    msg.message.includes('Natural (clear): €15')
-  );
-  const matchVI = history.some(msg =>
-    msg.role === 'assistant' &&
-    msg.message.includes('0,50 € mỗi đá đính') &&
-    msg.message.includes('Tự nhiên (trong): 15 €')
-  );
-  const result = matchDE || matchEN || matchVI;
-  console.log(`📋 hasModellInfoBeenSent: DE=${matchDE} EN=${matchEN} VI=${matchVI} → ${result}`);
+  console.log(`📋 hasModellInfoBeenSent (scripted only): ${result}`);
   return result;
 }
 
@@ -1133,8 +1125,10 @@ function hasModellInfoBeenSent(history) {
  * Check if the bot has already sent the booking link (Step 2)
  */
 function hasBookingLinkBeenSent(history) {
+  // Only check scripted STEP 2 rows — not AI fallback that may contain the link
   return history.some(msg =>
     msg.role === 'assistant' &&
+    msg.source === 'scripted' &&
     msg.message.includes('nailounge101.setmore.com/team/')
   );
 }
@@ -1250,6 +1244,7 @@ app.post('/webhook', async (req, res) => {
     
     // LAYER 3: Generate Response
     let botResponse;
+    let isScripted = false; // true when sending scripted STEP 1/2/3
     
     if (customerType === 'MODELL') {
       const infoAlreadySent    = hasModellInfoBeenSent(history);
@@ -1258,16 +1253,19 @@ app.post('/webhook', async (req, res) => {
       // STEP 3: Customer asks why prepayment is required
       if (bookingAlreadySent && isAskingAboutPrepayment(user_message)) {
         botResponse = MODELL_STEP3[userLang] || MODELL_STEP3.de;
+        isScripted = true;
         console.log(`📤 Sending MODELL STEP 3 (${userLang}): prepayment explanation`);
 
       // STEP 2: Customer agrees after seeing info → send booking link
       } else if (infoAlreadySent && !bookingAlreadySent && isCustomerAgreeing(user_message)) {
         botResponse = MODELL_STEP2[userLang] || MODELL_STEP2.de;
+        isScripted = true;
         console.log(`📤 Sending MODELL STEP 2 (${userLang}): booking link`);
 
       // STEP 1: First contact – send service info with prices
       } else if (!infoAlreadySent) {
         botResponse = MODELL_STEP1[userLang] || MODELL_STEP1.de;
+        isScripted = true;
         console.log(`📤 Sending MODELL STEP 1 (${userLang}): service info`);
 
       // Follow-up: anything else → AI handles it
@@ -1396,7 +1394,7 @@ Hoặc cho chúng mình biết ngày giờ bạn muốn, bạn có muốn mình 
     
     // Save messages
     await saveMessage(contact_id, user_name, 'user', user_message);
-    await saveMessage(contact_id, user_name, 'assistant', botResponse);
+    await saveMessage(contact_id, user_name, 'assistant', botResponse, isScripted ? 'scripted' : 'ai');
     
     // Update summary
     const updatedHistory = await getChatHistory(contact_id);
