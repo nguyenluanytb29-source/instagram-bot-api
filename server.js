@@ -107,6 +107,33 @@ Bạn thấy ổn không? 💅 Nếu mọi thứ phù hợp, chúng ta có thể
 
 // ── STEP 2: Booking link (after customer agrees) ──────────────────────────────
 
+// ── Group booking warning ────────────────────────────────────────────────────
+const MODELL_GROUP_WARNING = {
+  de: `Wir empfehlen, dass nur eine Person als Modell kommt. 😊 Da die Behandlung von einem Schüler durchgeführt wird, dauert sie ca. 2–3 Stunden – das wäre eine sehr lange Wartezeit für die anderen!
+
+Unsere Empfehlung:
+• 1 Person als Modellkunde (vergünstigter Preis)
+• Die anderen Personen können gerne einen regulären Termin buchen
+
+Soll ich Ihnen mehr Informationen zu unseren regulären Preisen geben?`,
+
+  en: `We recommend that only one person comes as a model. 😊 Since the treatment is carried out by a student, it takes about 2–3 hours — that would be a very long wait for the others!
+
+Our recommendation:
+• 1 person as a model customer (discounted price)
+• The others are welcome to book a regular appointment
+
+Would you like more information about our regular prices?`,
+
+  vi: `Mình khuyên chỉ nên có 1 người làm khách mẫu thôi nhé 😊 Vì dịch vụ do học viên thực hiện nên mất khoảng 2–3 tiếng — những người còn lại sẽ phải chờ rất lâu đấy!
+
+Gợi ý của mình:
+• 1 người làm khách mẫu (giá ưu đãi hơn)
+• Những người còn lại có thể đặt lịch dịch vụ thường
+
+Bạn muốn mình cho biết thêm về giá dịch vụ thường không?`
+};
+
 const MODELL_STEP2 = {
   de: `Super, das freut uns sehr! 😊
 
@@ -1254,6 +1281,36 @@ function isCustomerAgreeing(message) {
 /**
  * Detect if the customer is asking WHY they need to pay in advance.
  */
+/**
+ * Detect if customer is asking about bringing multiple people as models.
+ * Only triggers when they explicitly ask/mention group booking for model service.
+ */
+function isAskingAboutGroupModell(message) {
+  const lower = message.toLowerCase();
+  const groupPatterns = [
+    // German
+    'zu zweit', 'zu dritt', 'zu viert', 'zu fünft',
+    'wir sind', 'wir kommen', 'mehrere personen', 'mehrere leute',
+    'können wir alle', 'alle zusammen', 'als gruppe', 'mit freunden',
+    'mit meiner freundin', 'mit meinen freundinnen',
+    '2 personen', '3 personen', '4 personen',
+    'wir beide', 'wir drei', 'wir vier',
+    // English
+    'two of us', 'three of us', 'four of us', 'group of',
+    'we are coming', 'can we all', 'all together', 'as a group',
+    'with my friend', 'with friends', 'with my girlfriend',
+    '2 people', '3 people', '4 people',
+    'both of us', 'all of us',
+    // Vietnamese
+    'đi hai người', 'đi 2 người', 'đi ba người', 'đi 3 người',
+    'đi bốn người', 'đi 4 người', 'chúng tôi', 'chúng mình',
+    'cả hai', 'cả nhóm', 'nhóm bạn', 'bạn mình cùng đi',
+    'hai chị em', 'ba chị em', 'mấy người', 'nhiều người',
+    'đi cùng bạn', 'đi cùng nhau', 'mình và bạn',
+  ];
+  return groupPatterns.some(p => lower.includes(p));
+}
+
 function isAskingAboutPrepayment(message) {
   const lower = message.toLowerCase();
   const prepaymentPatterns = [
@@ -1342,8 +1399,13 @@ app.post('/webhook', async (req, res) => {
       const bookingAlreadySent = hasBookingLinkBeenSent(history);
       console.log(`📋 infoAlreadySent=${infoAlreadySent} bookingAlreadySent=${bookingAlreadySent} isAgreeing=${isCustomerAgreeing(user_message)} isPrepayQ=${isAskingAboutPrepayment(user_message)}`);
 
+      // GROUP WARNING: Customer asks about bringing multiple people
+      if (isAskingAboutGroupModell(user_message)) {
+        botResponse = MODELL_GROUP_WARNING[userLang] || MODELL_GROUP_WARNING.de;
+        console.log(`📤 Sending MODELL group warning (${userLang})`);
+
       // STEP 3: Customer asks why prepayment is required
-      if (bookingAlreadySent && isAskingAboutPrepayment(user_message)) {
+      } else if (bookingAlreadySent && isAskingAboutPrepayment(user_message)) {
         botResponse = MODELL_STEP3[userLang] || MODELL_STEP3.de;
         isScripted = true;
         console.log(`📤 Sending MODELL STEP 3 (${userLang}): prepayment explanation`);
