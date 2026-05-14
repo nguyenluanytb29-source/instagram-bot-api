@@ -822,10 +822,20 @@ function isReturningCustomer(history) {
  * used by returning customers who know the staff personally.
  */
 function isReturningByGreeting(message) {
-  const lower = message.toLowerCase();
-  // "hallo em", "hi em", "hey em", "chào em", etc.
-  return /\b(hallo|hi|hey|chào|xin chào)\s+em\b/.test(lower) ||
-         /\bem\b/.test(lower) && lower.length < 20; // short message with "em"
+  const lower = message.toLowerCase().trim();
+
+  // Explicit greeting + "em" patterns (safe, language-specific)
+  if (/\b(hallo|hi|hey|chào|xin chào)\s+em\b/.test(lower)) return true;
+
+  // Vietnamese "em oi/ơi" or "oi/ơi em" — very specific to VI informal address
+  if (/\bem\s+(oi|ơi)\b/u.test(lower)) return true;
+  if (/\b(oi|ơi)\s+em\b/u.test(lower)) return true;
+
+  // "em" at START of message followed by Vietnamese diacritic chars only
+  // "em muốn", "em ơi" → true | "em nail", "em book" → false
+  if (/^em\s+[áàảãạăắằẳẵặâấầẩẫậđéèẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵ]/u.test(lower)) return true;
+
+  return false;
 }
 
 /**
@@ -937,6 +947,32 @@ function validateBookingDatetime(datetimeStr) {
 
   const now = new Date();
 
+  // ── Pre-normalise European date formats DD.MM / DD.MM.YYYY → YYYY-MM-DD ──
+  // Must do this BEFORE other processing so Date.parse works correctly
+  let normalised0 = datetimeStr;
+
+  // DD.MM.YYYY → YYYY-MM-DD (do this first to avoid partial matches)
+  normalised0 = normalised0.replace(/(\d{1,2})\.(\d{1,2})\.(\d{4})/g, (_, d, m, y) => {
+    const day = parseInt(d, 10);
+    const month = parseInt(m, 10);
+    if (day < 1 || day > 31 || month < 1 || month > 12) return _; // not a valid date
+    return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+  });
+
+  // DD.MM (standalone, not followed by digit or dot) → YYYY-MM-DD
+  // Excludes time formats like "17.00" by requiring month 01-12
+  normalised0 = normalised0.replace(/(?<!\d)(\d{1,2})\.(0?[1-9]|1[0-2])\.?(?!\d)/g, (_, d, m) => {
+    const day = parseInt(d, 10);
+    if (day < 1 || day > 31) return _; // not a valid day
+    const year = now.getFullYear();
+    const candidate = new Date(`${year}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`);
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const useYear = candidate < startOfToday ? year + 1 : year;
+    return `${useYear}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+  });
+
+  datetimeStr = normalised0;
+
   // Normalise German/Vietnamese day names → English
   const dayMap = {
     'montag': 'Monday', 'dienstag': 'Tuesday', 'mittwoch': 'Wednesday',
@@ -955,8 +991,34 @@ function validateBookingDatetime(datetimeStr) {
   for (const [foreign, english] of Object.entries(dayMap)) {
     normalised = normalised.replace(foreign, english);
   }
-  // "9h" / "9h30" → "9:00" / "9:30"
-  normalised = normalised.replace(/(\d{1,2})h(\d{2})?/g, (_, h, m) => `${h}:${m || '00'}`);
+  // Normalise all time formats to HH:MM
+  // Order matters: handle compound formats first before simpler ones
+
+  // "5 giờ chiều" → "17:00", "5 giờ sáng" → "5:00" (Vietnamese — before h format)
+  normalised = normalised.replace(/(\d{1,2})\s*gi[oờ]+\s*chi[eề]+u/gi, (_, h) => `${parseInt(h,10) + (parseInt(h,10) < 12 ? 12 : 0)}:00`);
+  normalised = normalised.replace(/(\d{1,2})\s*gi[oờ]+\s*(sáng|s[aá]ng)/gi, (_, h) => `${h}:00`);
+  // "5 giờ" without sáng/chiều → assume chiều (pm) if hour <= 9
+  // (nail salon context: nobody books at 5am; opening is 9:30)
+  normalised = normalised.replace(/(\d{1,2})\s*gi[oờ]+/gi, (_, h) => {
+    const hr = parseInt(h, 10);
+    const converted = hr <= 9 ? hr + 12 : hr;
+    return `${converted}:00`;
+  });
+
+  // "17.00 Uhr" → "17:00" (German dot-format, before general h/dot handling)
+  normalised = normalised.replace(/(\d{1,2})\.(\d{2})\s*[Uu]hr/g, (_, h, m) => `${h}:${m}`);
+  // "17 Uhr" / "9 Uhr" → "17:00" / "9:00"
+  normalised = normalised.replace(/(\d{1,2})\s*[Uu]hr\b/g, (_, h) => `${h}:00`);
+
+  // "5:00pm" / "5:00am" → convert (must be before plain pm/am)
+  normalised = normalised.replace(/(\d{1,2}):(\d{2})\s*pm\b/gi, (_, h, m) => `${parseInt(h,10) + (parseInt(h,10) < 12 ? 12 : 0)}:${m}`);
+  normalised = normalised.replace(/(\d{1,2}):(\d{2})\s*am\b/gi, (_, h, m) => `${parseInt(h,10) === 12 ? 0 : parseInt(h,10)}:${m}`);
+  // "5pm" / "5am" → "17:00" / "5:00"
+  normalised = normalised.replace(/(\d{1,2})\s*pm\b/gi, (_, h) => `${parseInt(h,10) + (parseInt(h,10) < 12 ? 12 : 0)}:00`);
+  normalised = normalised.replace(/(\d{1,2})\s*am\b/gi, (_, h) => `${parseInt(h,10) === 12 ? 0 : parseInt(h,10)}:00`);
+
+  // "9h" / "9h30" → "9:00" / "9:30" (last, after other formats handled)
+  normalised = normalised.replace(/(\d{1,2})h(\d{2})?(?!\d)/g, (_, h, m) => `${h}:${m || '00'}`);
 
   // ── Sunday check by keyword ──────────────────────────────────────────────
   const sundayKeywords = ['sunday', 'sonntag', 'chủ nhật', ' cn '];
@@ -1072,7 +1134,7 @@ async function generateAIResponse(message, history, language, customerType, isRe
 
   let toneInstruction;
   if (isReturning) {
-    toneInstruction = `TONE: RETURNING customer — speak warmly and casually like you know them well (du/bạn/you). Skip formal greetings. Be personal and relaxed. NEVER include a booking link unless they explicitly ask for it.`;
+    toneInstruction = `TONE: RETURNING customer — speak warmly and casually like you know them well (du/bạn/you). Skip formal greetings. Be personal, fun and relaxed. Use friendly emojis naturally (😊 💅 🥰 ✨) to feel warm and approachable. NEVER include a booking link unless they explicitly ask for it.`;
   } else if (isFirstMessage) {
     toneInstruction = `TONE: NEW customer, FIRST message — greet warmly and answer their question naturally. Do NOT include any booking link or call-to-action in this first reply. Just be helpful and friendly.`;
   } else {
