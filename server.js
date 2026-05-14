@@ -1448,42 +1448,60 @@ app.post('/webhook', async (req, res) => {
 
       // ── CASE A: Customer explicitly says they'll book themselves ───
       if (bookingIntent.isSelfBooking) {
+        const BOOKING_LINK_NORMAL = 'https://nailounge101.setmore.com/';
         const thankYou = {
           de: returning
-            ? `Super, danke dir! 😊 Wenn du Fragen hast, meld dich einfach. Bis bald! 💅`
-            : `Super, danke! 😊 Falls du Fragen hast, sind wir gerne für dich da. Bis bald! 💅`,
+            ? `Super! 😊 Hier kannst du direkt buchen:\n${BOOKING_LINK_NORMAL}\nBei Fragen meld dich einfach. Bis bald! 💅`
+            : `Super, danke! 😊 Hier kannst du direkt buchen:\n${BOOKING_LINK_NORMAL}\nBei Fragen sind wir gerne für Sie da. Bis bald! 💅`,
           en: returning
-            ? `Awesome, thanks! 😊 Give us a shout if you need anything. See you soon! 💅`
-            : `Great, thank you! 😊 Feel free to reach out if you have any questions. See you soon! 💅`,
+            ? `Awesome! 😊 You can book directly here:\n${BOOKING_LINK_NORMAL}\nGive us a shout if you need anything. See you soon! 💅`
+            : `Great, thank you! 😊 You can book directly here:\n${BOOKING_LINK_NORMAL}\nFeel free to reach out if you have any questions. See you soon! 💅`,
           vi: returning
-            ? `Tuyệt vời, cảm ơn bạn nhé! 😊 Có gì cứ nhắn mình. Hẹn gặp bạn sớm! 💅`
-            : `Cảm ơn bạn! 😊 Nếu có thắc mắc gì cứ nhắn mình nhé. Hẹn gặp bạn! 💅`
+            ? `Tuyệt! 😊 Bạn có thể đặt lịch trực tiếp tại đây:\n${BOOKING_LINK_NORMAL}\nCó gì cứ nhắn mình nhé. Hẹn gặp bạn sớm! 💅`
+            : `Cảm ơn bạn! 😊 Bạn có thể đặt lịch trực tiếp tại đây:\n${BOOKING_LINK_NORMAL}\nNếu có thắc mắc gì cứ nhắn mình nhé. Hẹn gặp bạn! 💅`
         };
         botResponse = thankYou[userLang] || thankYou.de;
-        console.log('📤 Self-booking thank you sent');
+        console.log('📤 Self-booking: sent link + thank you');
 
       // ── CASE B: Customer explicitly asks us to book for them ──────
       } else if (bookingIntent.isAssistedBooking) {
-        const validationB = validateBookingDatetime(bookingIntent.datetime);
-        if (!validationB.valid) {
-          botResponse = buildInvalidDatetimeReply(validationB.reason, userLang, returning);
-          console.log(`📤 CASE B: invalid datetime (${validationB.reason}), asking to pick again`);
+        if (!bookingIntent.datetime) {
+          // No date/time given → ask first
+          const askWhen = {
+            de: returning
+              ? `Klar, ich buche das für dich! 😊 Wann möchtest du kommen? Sag mir einfach Tag und Uhrzeit.`
+              : `Gerne! Für wann darf ich den Termin vormerken? Bitte teilen Sie mir Tag und Uhrzeit mit.`,
+            en: returning
+              ? `Of course, I'll book that for you! 😊 When would you like to come? Just tell me the day and time.`
+              : `Sure! When would you like your appointment? Please let me know the day and time.`,
+            vi: returning
+              ? `Được, mình đặt cho bạn nhé! 😊 Bạn muốn đến ngày giờ nào? Cho mình biết nhé.`
+              : `Được ạ! Bạn muốn đặt lịch vào ngày giờ nào? Vui lòng cho mình biết nhé.`
+          };
+          botResponse = askWhen[userLang] || askWhen.de;
+          console.log('📤 CASE B: no datetime, asking when');
         } else {
-        await saveBookingToSummary(contact_id, user_name, bookingIntent);
-        const assisted = {
-          de: returning
-            ? `Klar, ich kümmere mich darum! 😊 Ich habe deinen Terminwunsch${bookingIntent.datetime ? ' für ' + bookingIntent.datetime : ''} notiert. Unser Team prüft den Kalender und meldet sich gleich bei dir. Danke! 💅`
-            : `Alles klar! Ich habe Ihren Terminwunsch${bookingIntent.datetime ? ' für ' + bookingIntent.datetime : ''} notiert. Unser Team prüft den Kalender und meldet sich in Kürze bei Ihnen. Vielen Dank! 💅`,
-          en: returning
-            ? `Of course, I'll sort that for you! 😊 I've noted your request${bookingIntent.datetime ? ' for ' + bookingIntent.datetime : ''}. Our team will check the calendar and get back to you shortly. Thanks! 💅`
-            : `Sure thing! I've noted your appointment request${bookingIntent.datetime ? ' for ' + bookingIntent.datetime : ''}. Our team will check the calendar and get back to you soon. Thank you! 💅`,
-          vi: returning
-            ? `Được rồi, mình lo cho bạn nhé! 😊 Mình đã ghi nhận lịch${bookingIntent.datetime ? ' ' + bookingIntent.datetime : ''} cho bạn. Nhân viên sẽ kiểm tra lịch và phản hồi sớm. Cảm ơn bạn! 💅`
-            : `Được ạ! Mình đã ghi nhận yêu cầu đặt lịch${bookingIntent.datetime ? ' ' + bookingIntent.datetime : ''} của bạn. Nhân viên sẽ kiểm tra lịch và phản hồi lại bạn sớm nhé. Cảm ơn bạn! 💅`
-        };
-        botResponse = assisted[userLang] || assisted.de;
-        console.log('📤 Assisted booking confirmed, summary saved');
-        } // end validationB.valid
+          const validationB = validateBookingDatetime(bookingIntent.datetime);
+          if (!validationB.valid) {
+            botResponse = buildInvalidDatetimeReply(validationB.reason, userLang, returning);
+            console.log(`📤 CASE B: invalid datetime (${validationB.reason}), asking to pick again`);
+          } else {
+            await saveBookingToSummary(contact_id, user_name, bookingIntent);
+            const assisted = {
+              de: returning
+                ? `Klar, ich kümmere mich darum! 😊 Ich habe deinen Terminwunsch notiert. Unser Team prüft den Kalender und meldet sich gleich bei dir. Danke! 💅`
+                : `Alles klar! Ich habe Ihren Terminwunsch notiert. Unser Team prüft den Kalender und meldet sich in Kürze bei Ihnen. Vielen Dank! 💅`,
+              en: returning
+                ? `Of course, I'll sort that for you! 😊 I've noted your request. Our team will check the calendar and get back to you shortly. Thanks! 💅`
+                : `Sure thing! I've noted your appointment request. Our team will check the calendar and get back to you soon. Thank you! 💅`,
+              vi: returning
+                ? `Được rồi, mình lo cho bạn nhé! 😊 Mình đã ghi nhận lịch cho bạn. Nhân viên sẽ kiểm tra lịch và phản hồi sớm. Cảm ơn bạn! 💅`
+                : `Được ạ! Mình đã ghi nhận yêu cầu đặt lịch của bạn. Nhân viên sẽ kiểm tra lịch và phản hồi lại bạn sớm nhé. Cảm ơn bạn! 💅`
+            };
+            botResponse = assisted[userLang] || assisted.de;
+            console.log('📤 Assisted booking confirmed, summary saved');
+          }
+        }
 
       // ── CASE C: Customer wants to book ───────────────────────────
       } else if (bookingIntent.isBooking && !askedPrefAlready) {
