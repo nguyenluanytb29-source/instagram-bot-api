@@ -876,7 +876,12 @@ function isReturningByGreeting(message) {
 async function detectBookingIntent(message, history) {
   try {
     const recentHistory = history.slice(-6).map(m => `[${m.role}]: ${m.message}`).join('\n');
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0]; // e.g. "2026-05-14"
     const prompt = `You are analysing a message from a nail salon customer.
+
+TODAY'S DATE: ${todayStr}
+IMPORTANT: When extracting datetime, always use the current year (${today.getFullYear()}) or next year if the date has already passed. Never use past years like 2023 or 2024. Return datetime as a human-readable string like "2026-05-15 17:00" or "Samstag 14:00".
 
 Conversation context:
 ${recentHistory || '[No prior messages]'}
@@ -885,7 +890,7 @@ Current message: "${message}"
 
 Determine:
 1. isBooking: does the customer want to make / ask about an appointment? (true/false)
-2. datetime: extract requested date and/or time (24h format). Day names are fine as-is. null if not mentioned.
+2. datetime: extract requested date and/or time. Use today's year (${today.getFullYear()}). Day names are fine as-is. null if not mentioned.
 3. isSelfBooking: does the customer say they will book themselves (e.g. "I'll book via the link", "ich buche selbst", "tự đặt")? (true/false)
 4. isAssistedBooking: does the customer explicitly ask us to book FOR them (e.g. "please book for me", "buch für mich", "đặt giùm mình")? (true/false)
 5. summary: one short sentence in German describing the booking request.
@@ -1079,7 +1084,14 @@ function validateBookingDatetime(datetimeStr) {
   }
 
   // ── Full date parse for past-date and Saturday-by-date checks ────────────
-  const parsed = new Date(normalised);
+  // Strip filler words so "2026-05-15 um 17:00" becomes "2026-05-15 17:00"
+  const cleanForParse = normalised
+    .replace(/\bum\b/gi, '')
+    .replace(/\blúc\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const parsed = new Date(cleanForParse);
   if (!isNaN(parsed.getTime())) {
     const dayOfWeek = parsed.getDay(); // 0=Sun, 6=Sat
 
