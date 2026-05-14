@@ -1053,6 +1053,7 @@ function validateBookingDatetime(datetimeStr) {
   normalised = normalised.replace(/(\d{1,2})h(\d{2})?(?!\d)/g, (_, h, m) => `${h}:${m || '00'}`);
 
   // ── Sunday check by keyword ──────────────────────────────────────────────
+  console.log(`🗓️ validate: input="${datetimeStr}" normalised="${normalised}"`);
   const sundayKeywords = ['sunday', 'sonntag', 'chủ nhật', ' cn '];
   if (sundayKeywords.some(k => normalised.includes(k))) {
     return { valid: false, reason: 'sunday' };
@@ -1504,16 +1505,18 @@ app.post('/webhook', async (req, res) => {
             console.log(`📤 CASE C1: invalid datetime (${validationC1.reason}), asking to pick again`);
           } else {
           await saveBookingToSummary(contact_id, user_name, bookingIntent);
+          // Use summary (human-readable) for display, fallback to datetime string
+          const displayDT = bookingIntent.summary || bookingIntent.datetime || '';
           const confirmC1 = {
             de: returning
-              ? `Super, ${bookingIntent.datetime} ist notiert! 😊 Das Team schaut in den Kalender und meldet sich bei dir. Danke! 💅`
-              : `Alles klar! ${bookingIntent.datetime} habe ich notiert. Das Team prüft den Kalender und meldet sich in Kürze bei Ihnen. Vielen Dank! 💅`,
+              ? `Super, ich habe notiert! 😊 Das Team schaut in den Kalender und meldet sich bei dir. Danke! 💅`
+              : `Alles klar! Ich habe Ihren Terminwunsch notiert. Das Team prüft den Kalender und meldet sich in Kürze bei Ihnen. Vielen Dank! 💅`,
             en: returning
-              ? `Got it, ${bookingIntent.datetime} is noted! 😊 The team will check the calendar and get back to you. Thanks! 💅`
-              : `Perfect! I've noted ${bookingIntent.datetime}. Our team will check the calendar and get back to you shortly. Thank you! 💅`,
+              ? `Got it, noted! 😊 The team will check the calendar and get back to you. Thanks! 💅`
+              : `Perfect! I've noted your appointment request. Our team will check the calendar and get back to you shortly. Thank you! 💅`,
             vi: returning
-              ? `Oke, mình đã ghi nhận ${bookingIntent.datetime} rồi! 😊 Nhân viên sẽ check lịch và phản hồi lại bạn nhé. Cảm ơn bạn! 💅`
-              : `Được ạ! Mình đã ghi nhận ${bookingIntent.datetime}. Nhân viên sẽ kiểm tra lịch và phản hồi lại bạn sớm. Cảm ơn bạn! 💅`
+              ? `Oke, mình đã ghi nhận rồi! 😊 Nhân viên sẽ check lịch và phản hồi lại bạn nhé. Cảm ơn bạn! 💅`
+              : `Được ạ! Mình đã ghi nhận yêu cầu của bạn. Nhân viên sẽ kiểm tra lịch và phản hồi lại bạn sớm. Cảm ơn bạn! 💅`
           };
           botResponse = confirmC1[userLang] || confirmC1.de;
           console.log('📤 CASE C1: datetime given → confirmed + saved, no link');
