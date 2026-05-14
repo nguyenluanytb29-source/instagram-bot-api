@@ -869,13 +869,20 @@ Respond ONLY with valid JSON (no markdown):
  * Check if bot has already sent the "self-book or assisted?" question in this conversation.
  */
 function hasAskedBookingPreference(history) {
+  // Only trigger if bot sent NORMAL booking link (not modell link)
+  // AND included the self-book-or-assisted question phrasing.
   return history.some(msg =>
     msg.role === 'assistant' &&
-    (msg.message.includes('nailounge101.setmore.com') ||
-     msg.message.includes('selbst buchen') ||
+    msg.source !== 'scripted' &&
+    msg.message.includes('nailounge101.setmore.com/') &&
+    !msg.message.includes('nailounge101.setmore.com/team/') &&
+    (msg.message.includes('selbst buchen') ||
      msg.message.includes('book yourself') ||
      msg.message.includes('tự đặt') ||
-     msg.message.includes('đặt giùm'))
+     msg.message.includes('đặt giùm') ||
+     msg.message.includes('soll ich') ||
+     msg.message.includes('would you like us') ||
+     msg.message.includes('bạn muốn mình'))
   );
 }
 
@@ -1109,15 +1116,20 @@ Response (2-4 sentences, ${langName}):`;
  * (Step 1 with price list and "Wäre das für Sie in Ordnung?")
  */
 function hasModellInfoBeenSent(history) {
-  // Only check rows saved with source='scripted' — AI fallback rows are ignored.
+  console.log(`📋 checking ${history.length} rows for scripted STEP 1`);
+  history.forEach((msg, i) => {
+    if (msg.role === 'assistant') {
+      console.log(`  row[${i}] source=${JSON.stringify(msg.source)} preview="${msg.message.substring(0, 40)}"`);
+    }
+  });
   const result = history.some(msg =>
     msg.role === 'assistant' &&
     msg.source === 'scripted' &&
-    (msg.message.includes('0,50 € pro Steinchen') ||   // DE STEP 1
-     msg.message.includes('€0.50 per rhinestone') ||   // EN STEP 1
-     msg.message.includes('0,50 € mỗi đá đính'))       // VI STEP 1
+    (msg.message.includes('0,50 € pro Steinchen') ||
+     msg.message.includes('€0.50 per rhinestone') ||
+     msg.message.includes('0,50 € mỗi đá đính'))
   );
-  console.log(`📋 hasModellInfoBeenSent (scripted only): ${result}`);
+  console.log(`📋 hasModellInfoBeenSent result: ${result}`);
   return result;
 }
 
