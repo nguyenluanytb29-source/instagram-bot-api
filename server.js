@@ -484,6 +484,13 @@ async function detectLanguage(message, contactId) {
   }
   
   // Returning customer - detect if switched
+  // Short/ambiguous messages (≤4 chars) like "ok", "ja", "yes", "gut"
+  // are unreliable for language detection — keep the saved language
+  if (message.trim().length <= 4) {
+    console.log(`📌 Short message — keeping saved language: ${savedLang}`);
+    return { language: savedLang, shouldReset: false };
+  }
+
   const fastResult = fastLanguageDetection(message);
   const detectedLang = fastResult || await aiLanguageDetection(message);
   
