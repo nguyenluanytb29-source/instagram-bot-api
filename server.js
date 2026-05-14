@@ -818,6 +818,17 @@ function isReturningCustomer(history) {
 }
 
 /**
+ * Detect if greeting contains "em" — Vietnamese informal address
+ * used by returning customers who know the staff personally.
+ */
+function isReturningByGreeting(message) {
+  const lower = message.toLowerCase();
+  // "hallo em", "hi em", "hey em", "chào em", etc.
+  return /\b(hallo|hi|hey|chào|xin chào)\s+em\b/.test(lower) ||
+         /\bem\b/.test(lower) && lower.length < 20; // short message with "em"
+}
+
+/**
  * Use AI to analyse a customer message and detect:
  * - isBooking      : customer wants to make an appointment
  * - datetime       : extracted date/time string (null if not mentioned)
@@ -1047,7 +1058,7 @@ function buildInvalidDatetimeReply(reason, lang, returning) {
   return (map[lang] || map.de);
 }
 
-async function generateAIResponse(message, history, language, customerType, isReturning = false) {
+async function generateAIResponse(message, history, language, customerType, isReturning = false, isFirstMessage = false) {
   console.log('\n🤖 === GENERATING AI RESPONSE ===');
   
   const historyText = formatHistory(history);
@@ -1059,9 +1070,14 @@ async function generateAIResponse(message, history, language, customerType, isRe
   const langNames = { de: 'German', en: 'English', vi: 'Vietnamese' };
   const langName = langNames[language] || 'German';
 
-  const toneInstruction = isReturning
-    ? `TONE: This is a RETURNING customer — speak warmly and naturally like you know them. Use casual, friendly language (du/bạn/you). Skip stiff greetings. Keep it personal and relaxed.`
-    : `TONE: New customer — friendly but professional.`;
+  let toneInstruction;
+  if (isReturning) {
+    toneInstruction = `TONE: RETURNING customer — speak warmly and casually like you know them well (du/bạn/you). Skip formal greetings. Be personal and relaxed. NEVER include a booking link unless they explicitly ask for it.`;
+  } else if (isFirstMessage) {
+    toneInstruction = `TONE: NEW customer, FIRST message — greet warmly and answer their question naturally. Do NOT include any booking link or call-to-action in this first reply. Just be helpful and friendly.`;
+  } else {
+    toneInstruction = `TONE: New customer — friendly but professional. Only mention the booking link if they ask about booking.`;
+  }
 
   const systemPrompt = `You are Nailounge101 AI assistant for a nail salon in Berlin.
 
@@ -1070,6 +1086,7 @@ CRITICAL RULES:
 2. CONCISE: 2-4 sentences max (mobile users)
 3. HELPFUL: Answer directly
 4. ${toneInstruction}
+5. DATETIME: When confirming a booking request, always repeat BOTH the day AND time exactly as the customer stated (e.g. "Samstag 14:00" not just "14:00", "Thứ 6 lúc 10:00" not just "10:00").
 
 SALON INFO:
 ${serviceInfo}
@@ -1289,8 +1306,11 @@ app.post('/webhook', async (req, res) => {
 
     } else {
       // ── NORMAL CUSTOMER FLOW ─────────────────────────────────────
-      const returning = isReturningCustomer(history);
-      console.log(`\n📌 Returning customer: ${returning}`);
+      const returningByHistory = isReturningCustomer(history);
+      const returningByGreeting = isReturningByGreeting(user_message);
+      const returning = returningByHistory || returningByGreeting;
+      const isFirstMessage = history.length === 0;
+      console.log(`\n📌 Returning: history=${returningByHistory} greeting=${returningByGreeting} firstMsg=${isFirstMessage}`);
 
       const bookingIntent = await detectBookingIntent(user_message, history);
       console.log(`📌 Booking intent:`, JSON.stringify(bookingIntent));
@@ -1364,43 +1384,32 @@ app.post('/webhook', async (req, res) => {
           } // end validationC1.valid
 
         } else {
-          // C2: No date/time yet → send link + ask if they want us to book for them
-          const askC2 = {
-            de: returning
-              ? `Hey! 😊 Du kannst direkt über unseren Link buchen – das geht am schnellsten:
-${BOOKING_LINK}
-
-Oder sag mir einfach wann du kommen möchtest und ich merke es für dich vor!`
-              : `Hallo! 😊 Sie können direkt über unseren Link buchen:
-${BOOKING_LINK}
-
-Oder teilen Sie uns Ihren Wunschtermin mit – sollen wir ihn für Sie vormerken?`,
-            en: returning
-              ? `Hey! 😊 You can book directly via our link – quickest way:
-${BOOKING_LINK}
-
-Or just tell me when you'd like to come and I'll note it down for you!`
-              : `Hello! 😊 You can book directly via our link:
-${BOOKING_LINK}
-
-Or let us know your preferred date and time – would you like us to book it for you?`,
-            vi: returning
-              ? `Hey! 😊 Bạn có thể tự đặt lịch qua link này cho nhanh:
-${BOOKING_LINK}
-
-Hoặc cho mình biết ngày giờ bạn muốn đến, mình đặt giùm cho nhé!`
-              : `Xin chào! 😊 Bạn có thể đặt lịch trực tiếp qua link:
-${BOOKING_LINK}
-
-Hoặc cho chúng mình biết ngày giờ bạn muốn, bạn có muốn mình đặt giùm không?`
-          };
-          botResponse = askC2[userLang] || askC2.de;
-          console.log('📤 CASE C2: no datetime, sending link + asking if assisted');
+          // C2: No date/time yet
+          // Returning → no link, just ask when they want to come
+          // New → send link + ask preference
+          let botResponseC2;
+          if (returning) {
+            const askC2Returning = {
+              de: `Hey! 😊 Wann möchtest du kommen? Sag mir einfach Tag und Uhrzeit und ich merke es für dich vor!`,
+              en: `Hey! 😊 When would you like to come? Just tell me the day and time and I'll note it down for you!`,
+              vi: `Hey! 😊 Bạn muốn đến ngày giờ nào? Cho mình biết để mình ghi nhận giùm nhé!`
+            };
+            botResponseC2 = askC2Returning[userLang] || askC2Returning.de;
+          } else {
+            const askC2New = {
+              de: `Hallo! 😊 Sie können direkt über unseren Link buchen:\n${BOOKING_LINK}\n\nOder teilen Sie uns Ihren Wunschtermin mit – sollen wir ihn für Sie vormerken?`,
+              en: `Hello! 😊 You can book directly via our link:\n${BOOKING_LINK}\n\nOr let us know your preferred date and time – would you like us to book it for you?`,
+              vi: `Xin chào! 😊 Bạn có thể đặt lịch trực tiếp qua link:\n${BOOKING_LINK}\n\nHoặc cho chúng mình biết ngày giờ bạn muốn, bạn có muốn mình đặt giùm không?`
+            };
+            botResponseC2 = askC2New[userLang] || askC2New.de;
+          }
+          botResponse = botResponseC2;
+          console.log(`📤 CASE C2: no datetime, returning=${returning}`);
         }
 
       // ── CASE D: Regular conversation ──────────────────────────────
       } else {
-        botResponse = await generateAIResponse(user_message, history, userLang, 'NORMAL', returning);
+        botResponse = await generateAIResponse(user_message, history, userLang, 'NORMAL', returning, isFirstMessage);
         console.log('📤 Normal AI response');
       }
     }
