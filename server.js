@@ -1411,13 +1411,8 @@ app.post('/webhook', async (req, res) => {
       const bookingAlreadySent = hasBookingLinkBeenSent(history);
       console.log(`📋 infoAlreadySent=${infoAlreadySent} bookingAlreadySent=${bookingAlreadySent} isAgreeing=${isCustomerAgreeing(user_message)} isPrepayQ=${isAskingAboutPrepayment(user_message)}`);
 
-      // GROUP WARNING: Customer asks about bringing multiple people
-      if (isAskingAboutGroupModell(user_message)) {
-        botResponse = MODELL_GROUP_WARNING[userLang] || MODELL_GROUP_WARNING.de;
-        console.log(`📤 Sending MODELL group warning (${userLang})`);
-
       // STEP 3: Customer asks why prepayment is required
-      } else if (bookingAlreadySent && isAskingAboutPrepayment(user_message)) {
+      if (bookingAlreadySent && isAskingAboutPrepayment(user_message)) {
         botResponse = MODELL_STEP3[userLang] || MODELL_STEP3.de;
         isScripted = true;
         console.log(`📤 Sending MODELL STEP 3 (${userLang}): prepayment explanation`);
@@ -1433,6 +1428,11 @@ app.post('/webhook', async (req, res) => {
         botResponse = MODELL_STEP1[userLang] || MODELL_STEP1.de;
         isScripted = true;
         console.log(`📤 Sending MODELL STEP 1 (${userLang}): service info`);
+
+      // GROUP WARNING: after STEP 1, customer asks about bringing multiple people
+      } else if (isAskingAboutGroupModell(user_message)) {
+        botResponse = MODELL_GROUP_WARNING[userLang] || MODELL_GROUP_WARNING.de;
+        console.log(`📤 Sending MODELL group warning (${userLang})`);
 
       // Follow-up: anything else → AI handles it
       } else {
