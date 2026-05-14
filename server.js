@@ -892,7 +892,7 @@ Determine:
 1. isBooking: does the customer want to make / ask about an appointment? (true/false)
 2. datetime: extract requested date and/or time. Use today's year (${today.getFullYear()}). Day names are fine as-is. null if not mentioned.
 3. isSelfBooking: does the customer say they will book themselves (e.g. "I'll book via the link", "ich buche selbst", "tự đặt")? (true/false)
-4. isAssistedBooking: does the customer explicitly ask us to book FOR them (e.g. "please book for me", "buch für mich", "đặt giùm mình")? (true/false)
+4. isAssistedBooking: does the customer EXPLICITLY ask us to book FOR them using clear language like "please book for me", "buch für mich", "đặt giùm mình", "bucht für mich"? (true/false). Simply saying "I want to book" or "Ich möchte einen Termin" is NOT isAssistedBooking — that is just isBooking=true.
 5. summary: one short sentence in German describing the booking request.
 
 Respond ONLY with valid JSON (no markdown):
@@ -1422,7 +1422,7 @@ app.post('/webhook', async (req, res) => {
         isScripted = true;
         console.log(`📤 Sending MODELL STEP 1 (${userLang}): service info`);
 
-      // GROUP WARNING: after STEP 1, customer asks about bringing multiple people
+      // GROUP WARNING: after STEP 1, customer mentions bringing multiple people
       } else if (isAskingAboutGroupModell(user_message)) {
         botResponse = MODELL_GROUP_WARNING[userLang] || MODELL_GROUP_WARNING.de;
         console.log(`📤 Sending MODELL group warning (${userLang})`);
