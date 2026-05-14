@@ -1053,7 +1053,6 @@ function validateBookingDatetime(datetimeStr) {
   normalised = normalised.replace(/(\d{1,2})h(\d{2})?(?!\d)/g, (_, h, m) => `${h}:${m || '00'}`);
 
   // ── Sunday check by keyword ──────────────────────────────────────────────
-  console.log(`🗓️ validate: input="${datetimeStr}" normalised="${normalised}"`);
   const sundayKeywords = ['sunday', 'sonntag', 'chủ nhật', ' cn '];
   if (sundayKeywords.some(k => normalised.includes(k))) {
     return { valid: false, reason: 'sunday' };
@@ -1235,12 +1234,6 @@ Response (2-4 sentences, ${langName}):`;
  * (Step 1 with price list and "Wäre das für Sie in Ordnung?")
  */
 function hasModellInfoBeenSent(history) {
-  console.log(`📋 checking ${history.length} rows for scripted STEP 1`);
-  history.forEach((msg, i) => {
-    if (msg.role === 'assistant') {
-      console.log(`  row[${i}] source=${JSON.stringify(msg.source)} preview="${msg.message.substring(0, 40)}"`);
-    }
-  });
   const result = history.some(msg =>
     msg.role === 'assistant' &&
     msg.source === 'scripted' &&
@@ -1410,7 +1403,6 @@ app.post('/webhook', async (req, res) => {
     if (customerType === 'MODELL') {
       const infoAlreadySent    = hasModellInfoBeenSent(history);
       const bookingAlreadySent = hasBookingLinkBeenSent(history);
-      console.log(`📋 infoAlreadySent=${infoAlreadySent} bookingAlreadySent=${bookingAlreadySent} isAgreeing=${isCustomerAgreeing(user_message)} isPrepayQ=${isAskingAboutPrepayment(user_message)}`);
 
       // STEP 3: Customer asks why prepayment is required
       if (bookingAlreadySent && isAskingAboutPrepayment(user_message)) {
