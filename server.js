@@ -1261,6 +1261,7 @@ app.post('/webhook', async (req, res) => {
     if (customerType === 'MODELL') {
       const infoAlreadySent    = hasModellInfoBeenSent(history);
       const bookingAlreadySent = hasBookingLinkBeenSent(history);
+      console.log(`📋 infoAlreadySent=${infoAlreadySent} bookingAlreadySent=${bookingAlreadySent} isAgreeing=${isCustomerAgreeing(user_message)} isPrepayQ=${isAskingAboutPrepayment(user_message)}`);
 
       // STEP 3: Customer asks why prepayment is required
       if (bookingAlreadySent && isAskingAboutPrepayment(user_message)) {
