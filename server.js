@@ -715,7 +715,24 @@ async function classifyCustomer(message, contactId, history, language) {
 
   // ── Keyword shortcut: skip AI if message clearly mentions model service ──
   const msgLower = message.toLowerCase();
-  const hasModellKeyword = MODELL_KEYWORDS.some(k => msgLower.includes(k));
+  // Exclude false positives — these are about nail DESIGNS, not model service
+  const MODELL_EXCLUSIONS = [
+    // German: new nail design queries
+    'neumodellage', 'neu modellage', 'neues design', 'neue designs',
+    'neues nail', 'neue nägel', 'neue nails', 'nail design',
+    'welche designs', 'welche muster', 'was für designs',
+    // English: new nail design queries
+    'new nail', 'new design', 'new style', 'new look',
+    'nail designs', 'nail styles', 'nail ideas', 'nail inspo',
+    'what designs', 'which designs', 'show me designs',
+    // Vietnamese: new nail design queries
+    'mẫu mới', 'mẫu nail mới', 'mẫu móng mới', 'mẫu đẹp',
+    'mẫu nail đẹp', 'mẫu nào đẹp', 'xem mẫu', 'có mẫu',
+    'mẫu hot', 'mẫu trend', 'mẫu nail hot', 'thiết kế mới',
+    'nail mới', 'móng mới', 'kiểu mới', 'kiểu nail',
+  ];
+  const hasExclusion = MODELL_EXCLUSIONS.some(e => msgLower.includes(e));
+  const hasModellKeyword = !hasExclusion && MODELL_KEYWORDS.some(k => msgLower.includes(k));
   if (hasModellKeyword) {
     if (currentFlag !== 'MODELL') {
       // NORMAL or NONE → upgrade to MODELL
