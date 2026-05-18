@@ -900,6 +900,8 @@ async function detectBookingIntent(message, history) {
 TODAY'S DATE: ${todayStr}
 IMPORTANT: When extracting datetime, always use the current year (${today.getFullYear()}) or next year if the date has already passed. Never use past years like 2023 or 2024. Return datetime as a human-readable string like "2026-05-15 17:00" or "Samstag 14:00".
 
+CRITICAL: Questions about nail DESIGNS or styles (e.g. "neumodellage", "neue Designs", "mẫu mới", "new nail styles", "what designs do you have") are NOT booking requests. isBooking must be false for these — they are general enquiries about services or styles.
+
 Conversation context:
 ${recentHistory || '[No prior messages]'}
 
