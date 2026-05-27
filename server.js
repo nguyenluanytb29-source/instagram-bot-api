@@ -606,10 +606,19 @@ The word has TWO COMPLETELY DIFFERENT MEANINGS:
    → Design patterns, styles
    
    EXAMPLES:
-   ❌ "Có mẫu mới không?" → NEW NAIL DESIGNS
-   ❌ "Mẫu đẹp quá!" → NAIL DESIGN
-   ❌ "Cho tôi xem mẫu" → NAIL DESIGNS
-   ❌ "New designs please" → NAIL DESIGNS
+   ❌ "Có mẫu mới không?" → NEW NAIL DESIGNS (NORMAL)
+   ❌ "Mẫu đẹp quá!" → NAIL DESIGN (NORMAL)
+   ❌ "Cho tôi xem mẫu" → NAIL DESIGNS (NORMAL)
+   ❌ "New designs please" → NAIL DESIGNS (NORMAL)
+   ❌ "Habt ihr neumodellage?" → ASKING ABOUT NAIL DESIGNS/STYLES (NORMAL) — NOT model service
+   ❌ "Habt ihr neue Designs?" → NAIL DESIGNS (NORMAL)
+   ❌ "Welche Designs habt ihr?" → NAIL DESIGNS (NORMAL)
+   ❌ "Was für Nail Designs gibt es?" → NAIL DESIGNS (NORMAL)
+   ❌ "Nail ideas for summer" → NAIL DESIGNS (NORMAL)
+   ❌ "Kiểu nail nào đang trend?" → NAIL DESIGNS (NORMAL)
+   ❌ "Móng mới về chưa?" → NAIL DESIGNS (NORMAL)
+   
+   CRITICAL: "neumodellage" = new nail design in German. It is NEVER model service. Always NORMAL.
 
 3️⃣ SWITCHING FROM MODEL TO REGULAR SERVICE:
    → Customer explicitly wants regular professional service
