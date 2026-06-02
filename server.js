@@ -618,7 +618,14 @@ The word has TWO COMPLETELY DIFFERENT MEANINGS:
    ❌ "Kiểu nail nào đang trend?" → NAIL DESIGNS (NORMAL)
    ❌ "Móng mới về chưa?" → NAIL DESIGNS (NORMAL)
    
-   CRITICAL: "neumodellage" = new nail design in German. It is NEVER model service. Always NORMAL.
+   CRITICAL: "neumodellage" = new nail design/set in German (Neu = new, Modellage = nail extension/design).
+   It is NEVER model service/Modellkunde. ALWAYS classify as NORMAL.
+   Any sentence containing "neumodellage" regardless of context → NORMAL.
+   Examples that are ALL NORMAL:
+   - "neumodellage buchen" → NORMAL (booking a new nail set, not model service)
+   - "neumodellage termin" → NORMAL
+   - "neumodellage kosten" → NORMAL (asking price for nail set)
+   - "neumodellage french" → NORMAL (nail design style)
 
 3️⃣ SWITCHING FROM MODEL TO REGULAR SERVICE:
    → Customer explicitly wants regular professional service
@@ -680,40 +687,45 @@ RESPONSE (JSON only)
 // Keywords that always indicate MODELL intent (no AI needed)
 // Grouped by language for maintainability
 const MODELL_KEYWORDS = [
-  // ── German ────────────────────────────────────────────────────
-  'modell',           // catches modellkunde, modelltermin, modellplatz, modellpreis etc.
+  // ── German — specific compound words only (avoid broad 'modell') ──────────
+  'modellkunde',      // explicit: Modellkunde
+  'modelltermin',     // explicit: Modelltermin
+  'modellplatz',      // explicit: Modellplatz
+  'modellpreis',      // explicit: Modellpreis
+  'modellkunden',     // plural
+  'modellservice',    // compound
+  'als modell',       // "als Modell kommen/buchen"
+  'für modell',       // "für Modell interessieren"
+  'modell kommen',    // "als Modell kommen"
+  'modell buchen',    // "Modell buchen"
+  'modell werden',    // "Modell werden"
+  'interessiere mich für modell', // very specific
+  'übungsmodell',
+  'lernmodell',
   'azubi',
   'auszubildende',
   'auszubildenden',
-  'schüler',          // "von einem Schüler"
-  'übungsmodell',
-  'lernmodell',
-  'günstiger service',
-  'günstiger termin',
-  'preiswert',        // "preiswerte Behandlung"
+  // 'schüler' removed — too broad ("Macht ein Schüler das?" = question, not booking)
 
-  // ── English ───────────────────────────────────────────────────
+  // ── English — specific phrases only ──────────────────────────────────────
   'model service',
   'model customer',
   'model appointment',
+  'model client',
   'practice model',
   'training model',
   'student model',
   'student practice',
-  'model client',
-  'model nail',       // "model nail appointment"
-  'cheap service',    // uncommon but possible
-  'discounted service',
+  // 'model nail' removed — could mean "nail design model"
+  // 'cheap service', 'discounted service' removed — too broad
 
-  // ── Vietnamese ────────────────────────────────────────────────
+  // ── Vietnamese ────────────────────────────────────────────────────────────
   'khách mẫu',
   'làm mẫu',
   'mẫu thực hành',
   'dịch vụ mẫu',
   'giá mẫu',
   'học viên',
-  // Note: 'thực hành', 'sinh viên', 'rẻ hơn', 'giá rẻ' intentionally excluded
-  // — too broad, high false-positive risk → let AI handle these
 ];
 
 async function classifyCustomer(message, contactId, history, language) {
@@ -726,10 +738,12 @@ async function classifyCustomer(message, contactId, history, language) {
   const msgLower = message.toLowerCase();
   // Exclude false positives — these are about nail DESIGNS, not model service
   const MODELL_EXCLUSIONS = [
-    // German: new nail design queries
-    'neumodellage', 'neu modellage', 'neues design', 'neue designs',
+    // German: nail design queries (Nagelmodell = nail design, NOT model service)
+    'neumodellage', 'neu modellage', 'nagelmodell', 'nagelmodelle',
+    'neue modelle', 'welche modelle', 'neues design', 'neue designs',
     'neues nail', 'neue nägel', 'neue nails', 'nail design',
     'welche designs', 'welche muster', 'was für designs',
+    'modelle für', 'modelle haben', 'modelle gibt',
     // English: new nail design queries
     'new nail', 'new design', 'new style', 'new look',
     'nail designs', 'nail styles', 'nail ideas', 'nail inspo',
@@ -741,7 +755,19 @@ async function classifyCustomer(message, contactId, history, language) {
     'nail mới', 'móng mới', 'kiểu mới', 'kiểu nail',
   ];
   const hasExclusion = MODELL_EXCLUSIONS.some(e => msgLower.includes(e));
-  const hasModellKeyword = !hasExclusion && MODELL_KEYWORDS.some(k => msgLower.includes(k));
+
+  // HARD OVERRIDE: exclusion keyword → always NORMAL, skip AI entirely
+  // Ensures "neumodellage", "neue Designs" etc. never reach AI classifier
+  if (hasExclusion) {
+    const matchedExclusion = MODELL_EXCLUSIONS.find(e => msgLower.includes(e));
+    console.log(`✅ Exclusion match "${matchedExclusion}" → force NORMAL (skipping AI)`);
+    if (currentFlag === 'MODELL') {
+      await updateCustomerFlag(contactId, 'NORMAL');
+    }
+    return 'NORMAL';
+  }
+
+  const hasModellKeyword = MODELL_KEYWORDS.some(k => msgLower.includes(k));
   if (hasModellKeyword) {
     if (currentFlag !== 'MODELL') {
       // NORMAL or NONE → upgrade to MODELL
