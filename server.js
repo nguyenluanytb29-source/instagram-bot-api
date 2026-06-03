@@ -1288,14 +1288,18 @@ Response (2-4 sentences, ${langName}):`;
  * (Step 1 with price list and "Wäre das für Sie in Ordnung?")
  */
 function hasModellInfoBeenSent(history) {
+  // Only check scripted STEP 1 rows within the last 30 days.
+  // Older history is ignored so returning customers get fresh info.
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const result = history.some(msg =>
     msg.role === 'assistant' &&
     msg.source === 'scripted' &&
-    (msg.message.includes('0,50 € pro Steinchen') ||
-     msg.message.includes('€0.50 per rhinestone') ||
-     msg.message.includes('0,50 € mỗi đá đính'))
+    new Date(msg.timestamp) >= cutoff &&
+    (msg.message.includes('0,50 \u20ac pro Steinchen') ||
+     msg.message.includes('\u20ac0.50 per rhinestone') ||
+     msg.message.includes('0,50 \u20ac m\u1ed7i \u0111\u00e1 \u0111\u00ednh'))
   );
-  console.log(`📋 hasModellInfoBeenSent result: ${result}`);
+  console.log(`\u{1F4CB} hasModellInfoBeenSent result: ${result}`);
   return result;
 }
 
@@ -1303,10 +1307,12 @@ function hasModellInfoBeenSent(history) {
  * Check if the bot has already sent the booking link (Step 2)
  */
 function hasBookingLinkBeenSent(history) {
-  // Only check scripted STEP 2 rows — not AI fallback that may contain the link
+  // Only check scripted STEP 2 rows within the last 30 days
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
   return history.some(msg =>
     msg.role === 'assistant' &&
     msg.source === 'scripted' &&
+    new Date(msg.timestamp) >= cutoff &&
     msg.message.includes('nailounge101.setmore.com/team/')
   );
 }
