@@ -1218,8 +1218,8 @@ async function generateAIResponse(message, history, language, customerType, isRe
   
   const historyText = formatHistory(history);
   
-  const serviceInfo = customerType === 'MODELL' 
-    ? 'Model Service: 15-20€, 2-3h, student practice'
+  const serviceInfo = customerType === 'MODELL'
+    ? 'Model Service: 15-20€, 2-3h, student practice. CRITICAL: Appointments are ONLINE ONLY with prepayment via the booking link. NEVER confirm appointments, NEVER ask for date/time. If customer mentions a date/time, redirect them to book online via the link provided.'
     : 'Professional service: standard prices, quality guaranteed';
   
   const langNames = { de: 'German', en: 'English', vi: 'Vietnamese' };
@@ -1242,6 +1242,7 @@ CRITICAL RULES:
 3. HELPFUL: Answer directly
 4. ${toneInstruction}
 5. DATETIME: When confirming a booking request, always repeat BOTH the day AND time exactly as the customer stated (e.g. "Samstag 14:00" not just "14:00", "Thứ 6 lúc 10:00" not just "10:00").
+${customerType === 'MODELL' ? `6. MODELL BOOKING: NEVER confirm, note, or acknowledge a specific date/time as a booking. NEVER say "I have noted your appointment". If customer gives a date/time, ALWAYS redirect: "Please book directly online with prepayment via our link." Booking is ONLINE ONLY.` : ''}
 
 SALON INFO:
 ${serviceInfo}
