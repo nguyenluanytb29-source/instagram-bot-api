@@ -497,6 +497,15 @@ async function detectLanguage(message, contactId) {
   // Get saved language
   const savedLang = await getSavedLanguage(contactId);
   
+  // Short/ambiguous messages (≤4 chars): "ok", "ja", "yes", "gut", "ok!"
+  // Unreliable for language detection — always keep/default German
+  // Applies to BOTH new and returning customers
+  if (message.trim().length <= 4) {
+    const langToKeep = savedLang || 'de';
+    console.log(`📌 Short message — keeping language: ${langToKeep}`);
+    return { language: langToKeep, shouldReset: false };
+  }
+
   // New customer - default German
   if (!savedLang) {
     console.log('🆕 New customer - default: German');
@@ -514,12 +523,6 @@ async function detectLanguage(message, contactId) {
   }
   
   // Returning customer - detect if switched
-  // Short/ambiguous messages (≤4 chars) like "ok", "ja", "yes", "gut"
-  // are unreliable for language detection — keep the saved language
-  if (message.trim().length <= 4) {
-    console.log(`📌 Short message — keeping saved language: ${savedLang}`);
-    return { language: savedLang, shouldReset: false };
-  }
 
   const fastResult = fastLanguageDetection(message);
   const detectedLang = fastResult || await aiLanguageDetection(message);
@@ -740,7 +743,8 @@ async function classifyCustomer(message, contactId, history, language) {
   const MODELL_EXCLUSIONS = [
     // German: nail design queries (Nagelmodell = nail design, NOT model service)
     'neumodellage', 'neu modellage', 'nagelmodell', 'nagelmodelle',
-    'neue modelle', 'welche modelle', 'neues design', 'neue designs',
+    'neue modelle', 'neuen modelle', 'welche modelle', 'welche neuen modelle',
+    'modelle habt', 'modelle haben', 'aktuelle modelle', 'neues design', 'neue designs',
     'neues nail', 'neue nägel', 'neue nails', 'nail design',
     'welche designs', 'welche muster', 'was für designs',
     'modelle für', 'modelle haben', 'modelle gibt',
@@ -912,9 +916,8 @@ function isReturningByGreeting(message) {
 
   // "em" at START of message followed by Vietnamese diacritic chars only
   // "em muốn", "em ơi" → true | "em nail", "em book" → false
-  if (/^em\s+[áàảãạăắằẳẵặâấầẩẫậđéèẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵ]/u.test(lower)) return true;
-
-  return false;
+  if (/^em\s+[a-záàảãạăắằẳẵặâấầẩẫậđéèẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵ]/u.test(lower) &&
+      !/^em\s+(nail|book|ok|hi|hey|hello|buchen|komm)\b/.test(lower)) return true;
 }
 
 /**
