@@ -5,6 +5,24 @@
 require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
+
+// franc: language detection library (npm install franc)
+// Falls back gracefully if not installed
+let francDetect = null;
+try {
+  const { franc } = require('franc');
+  // franc returns ISO 639-3 codes: 'deu'=German, 'eng'=English, 'vie'=Vietnamese
+  francDetect = (text) => {
+    const code = franc(text, { minLength: 5, only: ['deu', 'eng', 'vie'] });
+    if (code === 'deu') return 'de';
+    if (code === 'eng') return 'en';
+    if (code === 'vie') return 'vi';
+    return null; // undetermined → fallback to AI
+  };
+  console.log('✅ franc language detection loaded');
+} catch (e) {
+  console.log('⚠️  franc not available, using keyword detection');
+}
 const { Pool } = require('pg');
 const { OpenAI } = require('openai');
 
@@ -411,18 +429,29 @@ function detectGreeting(message) {
 
 function fastLanguageDetection(message) {
   const lower = message.toLowerCase().trim();
-  
-  // Vietnamese unique characters
+
+  // Layer 1: Vietnamese diacritics — 100% accurate, always first
   const vietnameseChars = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/;
   if (vietnameseChars.test(message)) {
     return 'vi';
   }
+
+  // Layer 2: franc trigram detection (if available)
+  if (francDetect && message.trim().length >= 8) {
+    const francResult = francDetect(message);
+    if (francResult) {
+      console.log(`🌍 franc detected: ${francResult}`);
+      return francResult;
+    }
+  }
+
+  // Layer 2 fallback: German keyword scoring (used when franc unavailable)
   
   // German structure scoring
   const germanIndicators = {
-    articles: ['der', 'die', 'das', 'eine', 'ein', 'einem', 'einer', 'den', 'dem', 'des'],
-    modalVerbs: ['würde', 'möchte', 'könnte', 'sollte', 'hätte', 'kann', 'muss', 'will'],
-    commonWords: ['gerne', 'auch', 'person', 'personen', 'bitte', 'danke', 'sehr']
+    articles: ['der', 'die', 'das', 'eine', 'ein', 'einem', 'einer', 'den', 'dem', 'des', 'ihr', 'ihre', 'ihren', 'für', 'mit', 'bei', 'von', 'auf', 'noch', 'nicht'],
+    modalVerbs: ['würde', 'möchte', 'könnte', 'sollte', 'hätte', 'hättet', 'kann', 'muss', 'will', 'wäre', 'habt', 'haben', 'seid', 'sind', 'wird', 'werden'],
+    commonWords: ['gerne', 'auch', 'person', 'personen', 'bitte', 'danke', 'sehr', 'spontan', 'termin', 'termine', 'morgen', 'auffüllen', 'ausfüllen', 'uhr', 'zwei', 'drei', 'vier', 'schön', 'gut', 'leider', 'wann', 'wie', 'was', 'wo', 'guten', 'hallo']
   };
   
   let germanScore = 0;
@@ -949,7 +978,7 @@ Determine:
 1. isBooking: does the customer want to make / ask about an appointment? (true/false)
 2. datetime: extract requested date and/or time. Use today's year (${today.getFullYear()}). Day names are fine as-is. null if not mentioned.
 3. isSelfBooking: does the customer say they will book themselves (e.g. "I'll book via the link", "ich buche selbst", "tự đặt")? (true/false)
-4. isAssistedBooking: does the customer EXPLICITLY ask us to book FOR them using clear language like "please book for me", "buch für mich", "đặt giùm mình", "bucht für mich"? (true/false). Simply saying "I want to book" or "Ich möchte einen Termin" is NOT isAssistedBooking — that is just isBooking=true.
+4. isAssistedBooking: does the customer EXPLICITLY ask us to book FOR them using clear language like "please book for me", "buch für mich", "đặt giùm mình", "bucht für mich"? (true/false). Simply saying "I want to book", "Ich möchte einen Termin", "habt ihr noch Termine", "hättet ihr noch einen Termin" is NOT isAssistedBooking — these are availability questions or general booking intent, not explicit requests to book on their behalf.
 5. summary: one short sentence in German describing the booking request.
 
 Respond ONLY with valid JSON (no markdown):
@@ -1509,6 +1538,25 @@ app.post('/webhook', async (req, res) => {
       console.log(`📌 Booking intent:`, JSON.stringify(bookingIntent));
 
       const askedPrefAlready = hasAskedBookingPreference(history);
+
+      // ── Pre-check: reclassify availability questions ────────────────
+      // "habt ihr noch Termine?" = availability question, NOT assisted booking
+      if (bookingIntent.isAssistedBooking) {
+        const availabilityQ = [
+          /habt ihr .*(noch|termin|platz|slot)/i,   // "habt ihr für morgen noch..."
+          /h.ttet ihr .*(noch|termin|platz|slot)/i,  // "hättet ihr für Samstag noch..."
+          /gibt es noch.*termin/i,
+          /noch.*termin.*(frei|offen|verfügbar)/i,
+          /termin.*(noch|frei|verfügbar|offen)/i,
+          /do you (still|have) (any|a).*(slot|appointment|spot)/i,
+          /are there (still|any).*(slot|appointment|spot)/i,
+          /any.*(slot|appointment).*(available|free|open)/i,
+        ].some(p => p.test(user_message));
+        if (availabilityQ) {
+          bookingIntent.isAssistedBooking = false;
+          console.log('📌 Availability Q → not assisted booking');
+        }
+      }
 
       // ── CASE A: Customer explicitly says they'll book themselves ───
       if (bookingIntent.isSelfBooking) {
